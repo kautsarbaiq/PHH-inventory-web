@@ -12,9 +12,6 @@ import { apiRoutes } from "./routes/index.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ---- Better Auth handler MUST be BEFORE express.json() ----
-app.all("/api/auth/*", toNodeHandler(auth));
-
 // ---- Global Middlewares ----
 app.use(
   cors({
@@ -22,6 +19,10 @@ app.use(
     credentials: true,
   })
 );
+
+// ---- Better Auth handler MUST be BEFORE express.json() ----
+app.all("/api/auth/*", toNodeHandler(auth));
+
 app.use(express.json());
 
 // ---- Health Check ----
