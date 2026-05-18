@@ -1,5 +1,6 @@
 // ============================================================
-// PHH Inventory — App Layout (Sidebar + Header + Content)
+// PHH Inventory — App Layout (Sidebar + Content)
+// Refactored: consistent spacing, theme toggle, improved hierarchy
 // ============================================================
 
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
@@ -11,6 +12,7 @@ import {
   User,
   ChevronRight,
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
 export default function AppLayout() {
   const { data: session } = useSession();
@@ -26,19 +28,21 @@ export default function AppLayout() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-bg-base">
-      {/* Sidebar */}
-      <aside className="w-64 bg-bg-surface border-r border-border flex flex-col shrink-0">
+    <div className="min-h-screen flex bg-bg-base theme-transition">
+      {/* ── Sidebar ── */}
+      <aside className="w-64 bg-bg-surface border-r border-border flex flex-col shrink-0 theme-transition">
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Factory className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-bold text-text-primary text-sm">
+            <h1 className="font-bold text-text-primary text-sm leading-tight">
               PHH Inventory
             </h1>
-            <p className="text-xs text-text-muted">Cutting Manager</p>
+            <p className="text-xs text-text-muted leading-tight">
+              Cutting Manager
+            </p>
           </div>
         </div>
 
@@ -49,48 +53,59 @@ export default function AppLayout() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                `group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
                 }`
               }
             >
-              <item.icon className="w-4 h-4" />
+              <item.icon className="w-4 h-4 shrink-0" />
               {item.label}
-              <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100" />
+              <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
             </NavLink>
           ))}
         </nav>
 
-        {/* User */}
-        <div className="px-3 py-4 border-t border-border">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <User className="w-4 h-4 text-primary" />
+        {/* Bottom: Theme Toggle + User */}
+        <div className="border-t border-border">
+          {/* Theme toggle row */}
+          <div className="flex items-center justify-between px-5 py-3">
+            <span className="text-xs text-text-muted font-medium uppercase tracking-wider">
+              Theme
+            </span>
+            <ThemeToggle />
+          </div>
+
+          {/* User info */}
+          <div className="px-3 pb-4">
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-bg-elevated/50">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-text-primary truncate leading-tight">
+                  {session?.user?.name || "User"}
+                </p>
+                <p className="text-xs text-text-muted truncate leading-tight">
+                  {session?.user?.role || "operator"}
+                </p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="p-1.5 rounded-lg hover:bg-bg-hover text-text-muted hover:text-danger transition-colors cursor-pointer"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary truncate">
-                {session?.user?.name || "User"}
-              </p>
-              <p className="text-xs text-text-muted truncate">
-                {session?.user?.role || "operator"}
-              </p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="p-1.5 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-danger transition-colors cursor-pointer"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* ── Main Content ── */}
       <main className="flex-1 overflow-auto">
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-8 max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>

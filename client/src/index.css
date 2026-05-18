@@ -1,14 +1,64 @@
 @import "tailwindcss";
 
 /* ============================================================
-   PHH Inventory — Design System (Dark Industrial Theme)
+   PHH Inventory — Design System (Light/Dark Industrial Theme)
+   Tailwind CSS v4 — CSS-first token architecture
    ============================================================ */
 
-@theme {
+/* ---- Light Mode (default) ---- */
+:root {
+  --color-bg-base: #f1f5f9;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #e2e8f0;
+  --color-bg-hover: #cbd5e1;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  --color-border: #e2e8f0;
+  --color-border-light: #cbd5e1;
+
+  /* Canvas-specific (light) */
+  --canvas-bg: #f8fafc;
+  --canvas-sheet: #e2e8f0;
+  --canvas-sheet-stroke: #94a3b8;
+  --canvas-grid: #cbd5e1;
+  --canvas-text: #475569;
+  --canvas-kerf-text: #94a3b8;
+  --canvas-statusbar-bg: rgba(255, 255, 255, 0.7);
+}
+
+/* ---- Dark Mode ---- */
+.dark {
   --color-bg-base: #0f172a;
   --color-bg-surface: #1e293b;
   --color-bg-elevated: #334155;
   --color-bg-hover: #475569;
+
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+
+  --color-border: #334155;
+  --color-border-light: #475569;
+
+  /* Canvas-specific (dark) */
+  --canvas-bg: #0f172a;
+  --canvas-sheet: #1e293b;
+  --canvas-sheet-stroke: #475569;
+  --canvas-grid: #334155;
+  --canvas-text: #64748b;
+  --canvas-kerf-text: #475569;
+  --canvas-statusbar-bg: rgba(30, 41, 59, 0.7);
+}
+
+/* ---- Theme-invariant brand colors ---- */
+@theme {
+  --color-bg-base: var(--color-bg-base);
+  --color-bg-surface: var(--color-bg-surface);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-hover: var(--color-bg-hover);
 
   --color-primary: #3b82f6;
   --color-primary-light: #60a5fa;
@@ -25,12 +75,12 @@
 
   --color-scrap: #6b7280;
 
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
 
-  --color-border: #334155;
-  --color-border-light: #475569;
+  --color-border: var(--color-border);
+  --color-border-light: var(--color-border-light);
 
   /* Canvas shape colors */
   --color-shape-rect: #3b82f6;
@@ -61,6 +111,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* ---- Scrollbar ---- */
@@ -98,6 +149,11 @@ body {
   50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 .animate-fade-in {
   animation: fade-in 0.4s ease-out forwards;
 }
@@ -108,4 +164,22 @@ body {
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ---- Skeleton loader ---- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-elevated) 25%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* ---- Smooth theme transitions for cards & borders ---- */
+.theme-transition {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }

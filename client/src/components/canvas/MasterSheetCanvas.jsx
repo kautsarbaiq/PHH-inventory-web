@@ -1,16 +1,16 @@
 // ============================================================
 // PHH Inventory — Master Sheet Canvas (react-konva)
-// With real-time collision detection during drag
+// Refactored: theme-aware colors, CSS isolation, responsive
 // ============================================================
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { Stage, Layer, Rect, Circle, Line, Text, Group } from "react-konva";
-import { validatePlacement, getCenterFromTopLeft } from "./CollisionEngine";
+import { validatePlacement } from "./CollisionEngine";
+import { useTheme } from "../layout/ThemeProvider";
 
-const CANVAS_PADDING = 40;
 const GRID_SIZE = 10; // mm
 
-// Shape colors
+// Shape colors (theme-invariant — always vivid on both themes)
 const SHAPE_COLORS = {
   rectangle: { fill: "rgba(59,130,246,0.5)", stroke: "#3b82f6" },
   circle: { fill: "rgba(139,92,246,0.5)", stroke: "#8b5cf6" },
@@ -19,11 +19,53 @@ const SHAPE_COLORS = {
 
 const INVALID_COLOR = { fill: "rgba(239,68,68,0.35)", stroke: "#ef4444" };
 
+// Canvas theme palettes (must be hardcoded — Konva can't read CSS vars)
+const CANVAS_THEMES = {
+  dark: {
+    bg: "#0f172a",
+    sheet: "#1e293b",
+    sheetStroke: "#475569",
+    grid: "#334155",
+    text: "#64748b",
+    kerfText: "#475569",
+    statusBg: "rgba(30,41,59,0.7)",
+  },
+  light: {
+    bg: "#f8fafc",
+    sheet: "#e2e8f0",
+    sheetStroke: "#94a3b8",
+    grid: "#cbd5e1",
+    text: "#475569",
+    kerfText: "#94a3b8",
+    statusBg: "rgba(255,255,255,0.7)",
+  },
+};
+
 export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate }) {
   const containerRef = useRef(null);
-  const [canvasWidth] = useState(700);
-  const canvasHeight = 400;
-  const [dragState, setDragState] = useState(null); // { id, valid }
+  const { isDark } = useTheme();
+  const palette = isDark ? CANVAS_THEMES.dark : CANVAS_THEMES.light;
+
+  // Responsive canvas width
+  const [canvasWidth, setCanvasWidth] = useState(700);
+  const canvasHeight = 420;
+  const [dragState, setDragState] = useState(null);
+
+  // Observe container width for responsiveness
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.floor(entry.contentRect.width);
+        if (w > 0) setCanvasWidth(w);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const CANVAS_PADDING = 50;
 
   // Calculate scale to fit sheet in canvas
   const scale = useMemo(() => {
@@ -32,7 +74,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
     const scaleX = availW / sheet.length;
     const scaleY = availH / sheet.width;
     return Math.min(scaleX, scaleY);
-  }, [sheet.length, sheet.width, canvasWidth]);
+  }, [sheet.length, sheet.width, canvasWidth, canvasHeight]);
 
   const sheetPixelW = sheet.length * scale;
   const sheetPixelH = sheet.width * scale;
@@ -53,10 +95,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
 
       const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
 
-      // Get center for AABB from top-left position
-      const { centerX, centerY } = getCenterFromTopLeft(cuttingType, dims, snappedX, snappedY);
-
-      // Validate against other cuttings (exclude self)
       const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
       const result = validatePlacement(
         sheet,
@@ -69,7 +107,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
     [cuttings, sheet, offsetX, offsetY, scale]
   );
 
-  // Handle drag end for a cutting shape
+  // Handle drag end
   const handleDragEnd = useCallback(
     (cuttingId, cuttingType, dimensions, e) => {
       const node = e.target;
@@ -78,7 +116,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
 
       const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
 
-      // Final validation
       const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
       const result = validatePlacement(
         sheet,
@@ -91,7 +128,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
       if (result.valid && onPositionUpdate) {
         onPositionUpdate(cuttingId, { positionX: newX, positionY: newY });
       }
-      // If invalid, node snaps back on next re-render (server state)
     },
     [cuttings, sheet, offsetX, offsetY, scale, onPositionUpdate]
   );
@@ -100,16 +136,16 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   const gridLines = useMemo(() => {
     const lines = [];
     const gridPx = GRID_SIZE * scale;
-    if (gridPx < 4) return lines; // Skip grid if too dense
+    if (gridPx < 4) return lines;
 
     for (let x = 0; x <= sheetPixelW; x += gridPx) {
       lines.push(
         <Line
           key={`v-${x}`}
           points={[offsetX + x, offsetY, offsetX + x, offsetY + sheetPixelH]}
-          stroke="#334155"
+          stroke={palette.grid}
           strokeWidth={0.5}
-          opacity={0.3}
+          opacity={0.4}
         />
       );
     }
@@ -118,22 +154,25 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
         <Line
           key={`h-${y}`}
           points={[offsetX, offsetY + y, offsetX + sheetPixelW, offsetY + y]}
-          stroke="#334155"
+          stroke={palette.grid}
           strokeWidth={0.5}
-          opacity={0.3}
+          opacity={0.4}
         />
       );
     }
     return lines;
-  }, [sheetPixelW, sheetPixelH, offsetX, offsetY, scale]);
+  }, [sheetPixelW, sheetPixelH, offsetX, offsetY, scale, palette.grid]);
 
   return (
-    <div ref={containerRef} className="bg-bg-base rounded-lg overflow-hidden border border-border/50">
+    <div
+      ref={containerRef}
+      className="relative w-full rounded-lg overflow-hidden border border-border/50 theme-transition"
+    >
       <Stage width={canvasWidth} height={canvasHeight}>
-        {/* Background + Grid */}
+        {/* Background + Grid Layer */}
         <Layer listening={false}>
           {/* Canvas background */}
-          <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill="#0f172a" />
+          <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={palette.bg} />
 
           {/* Sheet surface */}
           <Rect
@@ -141,8 +180,8 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
             y={offsetY}
             width={sheetPixelW}
             height={sheetPixelH}
-            fill="#1e293b"
-            stroke="#475569"
+            fill={palette.sheet}
+            stroke={palette.sheetStroke}
             strokeWidth={2}
             cornerRadius={2}
           />
@@ -150,19 +189,19 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
 
           {/* Dimension labels */}
           <Text
-            x={offsetX + sheetPixelW / 2 - 25}
-            y={offsetY + sheetPixelH + 10}
+            x={offsetX + sheetPixelW / 2 - 30}
+            y={offsetY + sheetPixelH + 12}
             text={`${sheet.length} mm`}
-            fill="#64748b"
+            fill={palette.text}
             fontSize={11}
             fontFamily="Inter, sans-serif"
             align="center"
           />
           <Text
-            x={offsetX - 35}
+            x={offsetX - 38}
             y={offsetY + sheetPixelH / 2 + 15}
             text={`${sheet.width} mm`}
-            fill="#64748b"
+            fill={palette.text}
             fontSize={11}
             fontFamily="Inter, sans-serif"
             rotation={-90}
@@ -171,15 +210,15 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
           {/* Kerf indicator */}
           <Text
             x={offsetX}
-            y={offsetY - 18}
+            y={offsetY - 20}
             text={`Kerf: ${sheet.kerfAllowance} mm`}
-            fill="#475569"
+            fill={palette.kerfText}
             fontSize={10}
             fontFamily="Inter, sans-serif"
           />
         </Layer>
 
-        {/* Cutting Shapes */}
+        {/* Cutting Shapes Layer */}
         <Layer>
           {cuttings.map((cut) => {
             const isBeingDragged = dragState?.id === cut.id;
@@ -206,11 +245,15 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
       </Stage>
 
       {/* Canvas status bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 text-xs text-text-muted border-t border-border/50 bg-bg-surface/50">
-        <span>{cuttings.length} cut(s) placed</span>
+      <div className="flex items-center justify-between px-4 py-2 text-xs text-text-muted border-t border-border/50 bg-bg-surface/70 backdrop-blur-sm theme-transition">
+        <span className="font-medium">{cuttings.length} cut(s) placed</span>
         <span>Grid: {GRID_SIZE}mm snap</span>
         {dragState && (
-          <span className={dragState.valid ? "text-success" : "text-danger font-medium"}>
+          <span
+            className={`font-semibold ${
+              dragState.valid ? "text-success" : "text-danger"
+            }`}
+          >
             {dragState.valid ? "✓ Valid position" : "✗ Invalid — collision detected"}
           </span>
         )}
@@ -219,7 +262,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   );
 }
 
-// Individual cutting shape renderer
+// ── Individual cutting shape renderer ──
 function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDragMove, onDragEnd }) {
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
@@ -258,12 +301,12 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             strokeWidth={isInvalid ? 2.5 : 1.5}
             cornerRadius={1}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
-            shadowBlur={isInvalid ? 8 : 3}
+            shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
           />
           <Text
-            x={4}
-            y={4}
+            x={6}
+            y={5}
             text={jobNumber || `${dims.length}×${dims.width}`}
             fill="white"
             fontSize={Math.max(9, Math.min(12, dims.length * scale * 0.1))}
@@ -282,7 +325,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
-            shadowBlur={isInvalid ? 8 : 3}
+            shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
           />
           <Text
@@ -311,11 +354,11 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
-            shadowBlur={isInvalid ? 8 : 3}
+            shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
           />
           <Text
-            x={4}
+            x={6}
             y={dims.height * scale - 16}
             text={jobNumber || `${dims.base}×${dims.height}`}
             fill="white"
