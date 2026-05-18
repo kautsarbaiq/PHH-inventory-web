@@ -1,6 +1,6 @@
 // ============================================================
 // PHH Inventory — Master Sheet Canvas (react-konva)
-// Refactored: theme-aware colors, CSS isolation, responsive
+// Refactored: zoom, pan, touch support, hit areas, z-10
 // ============================================================
 
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
@@ -10,7 +10,7 @@ import { useTheme } from "../layout/ThemeProvider";
 
 const GRID_SIZE = 10; // mm
 
-// Shape colors (theme-invariant — always vivid on both themes)
+// Shape colors (theme-invariant)
 const SHAPE_COLORS = {
   rectangle: { fill: "rgba(59,130,246,0.5)", stroke: "#3b82f6" },
   circle: { fill: "rgba(139,92,246,0.5)", stroke: "#8b5cf6" },
@@ -19,7 +19,6 @@ const SHAPE_COLORS = {
 
 const INVALID_COLOR = { fill: "rgba(239,68,68,0.35)", stroke: "#ef4444" };
 
-// Canvas theme palettes (must be hardcoded — Konva can't read CSS vars)
 const CANVAS_THEMES = {
   dark: {
     bg: "#0f172a",
@@ -28,7 +27,6 @@ const CANVAS_THEMES = {
     grid: "#334155",
     text: "#64748b",
     kerfText: "#475569",
-    statusBg: "rgba(30,41,59,0.7)",
   },
   light: {
     bg: "#f8fafc",
@@ -37,7 +35,6 @@ const CANVAS_THEMES = {
     grid: "#cbd5e1",
     text: "#475569",
     kerfText: "#94a3b8",
-    statusBg: "rgba(255,255,255,0.7)",
   },
 };
 
@@ -46,12 +43,16 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   const { isDark } = useTheme();
   const palette = isDark ? CANVAS_THEMES.dark : CANVAS_THEMES.light;
 
-  // Responsive canvas width
   const [canvasWidth, setCanvasWidth] = useState(700);
   const canvasHeight = 420;
   const [dragState, setDragState] = useState(null);
 
-  // Observe container width for responsiveness
+  // Zoom & Pan state
+  const [stageScale, setStageScale] = useState(1);
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const lastCenter = useRef(null);
+  const lastDist = useRef(0);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -66,9 +67,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   }, []);
 
   const CANVAS_PADDING = 50;
-
-  // Calculate scale to fit sheet in canvas
-  const scale = useMemo(() => {
+  const baseScale = useMemo(() => {
     const availW = canvasWidth - CANVAS_PADDING * 2;
     const availH = canvasHeight - CANVAS_PADDING * 2;
     const scaleX = availW / sheet.length;
@@ -76,66 +75,140 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
     return Math.min(scaleX, scaleY);
   }, [sheet.length, sheet.width, canvasWidth, canvasHeight]);
 
-  const sheetPixelW = sheet.length * scale;
-  const sheetPixelH = sheet.width * scale;
+  const sheetPixelW = sheet.length * baseScale;
+  const sheetPixelH = sheet.width * baseScale;
   const offsetX = (canvasWidth - sheetPixelW) / 2;
   const offsetY = (canvasHeight - sheetPixelH) / 2;
 
-  // Snap to grid
   const snapToGrid = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
 
-  // Real-time collision check during drag
+  // Zoom handler
+  const handleWheel = (e) => {
+    e.evt.preventDefault();
+    const scaleBy = 1.05;
+    const stage = e.target.getStage();
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+
+    let newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+    newScale = Math.max(0.5, Math.min(newScale, 5));
+
+    setStageScale(newScale);
+    setStagePos({
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    });
+  };
+
+  // Pinch-to-zoom handlers
+  const getDistance = (p1, p2) => Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+  const getCenter = (p1, p2) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
+
+  const handleTouchMove = (e) => {
+    e.evt.preventDefault();
+    const touch1 = e.evt.touches[0];
+    const touch2 = e.evt.touches[1];
+
+    if (touch1 && touch2) {
+      if (e.target.getStage().isDragging()) e.target.getStage().stopDrag();
+
+      const stage = e.target.getStage();
+      const p1 = { x: touch1.clientX, y: touch1.clientY };
+      const p2 = { x: touch2.clientX, y: touch2.clientY };
+
+      const dist = getDistance(p1, p2);
+      if (!lastDist.current) lastDist.current = dist;
+
+      const center = getCenter(p1, p2);
+      const pointTo = {
+        x: (center.x - stage.x()) / stage.scaleX(),
+        y: (center.y - stage.y()) / stage.scaleX(),
+      };
+
+      const scaleBy = dist / lastDist.current;
+      const oldScale = stage.scaleX();
+      let newScale = oldScale * scaleBy;
+      newScale = Math.max(0.5, Math.min(newScale, 5));
+
+      setStageScale(newScale);
+      setStagePos({
+        x: center.x - pointTo.x * newScale,
+        y: center.y - pointTo.y * newScale,
+      });
+
+      lastDist.current = dist;
+      lastCenter.current = center;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastDist.current = 0;
+    lastCenter.current = null;
+  };
+
   const handleDragMove = useCallback(
     (cuttingId, cuttingType, dimensions, e) => {
       const node = e.target;
-      const rawX = (node.x() - offsetX) / scale;
-      const rawY = (node.y() - offsetY) / scale;
+      const rawX = (node.x() - offsetX) / baseScale;
+      const rawY = (node.y() - offsetY) / baseScale;
       const snappedX = snapToGrid(rawX);
       const snappedY = snapToGrid(rawY);
 
       const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
-
       const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
-      const result = validatePlacement(
-        sheet,
-        otherCuttings,
-        { cuttingType, dimensions: dims, positionX: snappedX, positionY: snappedY, rotation: 0 }
-      );
+      const result = validatePlacement(sheet, otherCuttings, {
+        cuttingType,
+        dimensions: dims,
+        positionX: snappedX,
+        positionY: snappedY,
+        rotation: 0,
+      });
 
       setDragState({ id: cuttingId, valid: result.valid });
     },
-    [cuttings, sheet, offsetX, offsetY, scale]
+    [cuttings, sheet, offsetX, offsetY, baseScale]
   );
 
-  // Handle drag end
   const handleDragEnd = useCallback(
     (cuttingId, cuttingType, dimensions, e) => {
       const node = e.target;
-      const newX = snapToGrid((node.x() - offsetX) / scale);
-      const newY = snapToGrid((node.y() - offsetY) / scale);
+      const newX = snapToGrid((node.x() - offsetX) / baseScale);
+      const newY = snapToGrid((node.y() - offsetY) / baseScale);
 
       const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
-
       const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
-      const result = validatePlacement(
-        sheet,
-        otherCuttings,
-        { cuttingType, dimensions: dims, positionX: newX, positionY: newY, rotation: 0 }
-      );
+      const result = validatePlacement(sheet, otherCuttings, {
+        cuttingType,
+        dimensions: dims,
+        positionX: newX,
+        positionY: newY,
+        rotation: 0,
+      });
 
       setDragState(null);
 
       if (result.valid && onPositionUpdate) {
         onPositionUpdate(cuttingId, { positionX: newX, positionY: newY });
+      } else {
+        // Snap back on invalid
+        const originalCut = cuttings.find(c => c.id === cuttingId);
+        if (originalCut) {
+          node.x(offsetX + originalCut.positionX * baseScale);
+          node.y(offsetY + originalCut.positionY * baseScale);
+        }
       }
     },
-    [cuttings, sheet, offsetX, offsetY, scale, onPositionUpdate]
+    [cuttings, sheet, offsetX, offsetY, baseScale, onPositionUpdate]
   );
 
-  // Render grid lines
   const gridLines = useMemo(() => {
     const lines = [];
-    const gridPx = GRID_SIZE * scale;
+    const gridPx = GRID_SIZE * baseScale;
     if (gridPx < 4) return lines;
 
     for (let x = 0; x <= sheetPixelW; x += gridPx) {
@@ -161,20 +234,38 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
       );
     }
     return lines;
-  }, [sheetPixelW, sheetPixelH, offsetX, offsetY, scale, palette.grid]);
+  }, [sheetPixelW, sheetPixelH, offsetX, offsetY, baseScale, palette.grid]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full rounded-lg overflow-hidden border border-border/50 theme-transition"
+      className="relative w-full rounded-lg overflow-hidden border border-border/50 theme-transition z-10"
     >
-      <Stage width={canvasWidth} height={canvasHeight}>
-        {/* Background + Grid Layer */}
+      <Stage
+        width={canvasWidth}
+        height={canvasHeight}
+        draggable
+        onWheel={handleWheel}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        scaleX={stageScale}
+        scaleY={stageScale}
+        x={stagePos.x}
+        y={stagePos.y}
+        onDragEnd={(e) => {
+          if (e.target === e.target.getStage()) {
+            setStagePos({ x: e.target.x(), y: e.target.y() });
+          }
+        }}
+      >
         <Layer listening={false}>
-          {/* Canvas background */}
-          <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={palette.bg} />
-
-          {/* Sheet surface */}
+          <Rect
+            x={-canvasWidth * 5}
+            y={-canvasHeight * 5}
+            width={canvasWidth * 10}
+            height={canvasHeight * 10}
+            fill={palette.bg}
+          />
           <Rect
             x={offsetX}
             y={offsetY}
@@ -186,8 +277,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
             cornerRadius={2}
           />
           {gridLines}
-
-          {/* Dimension labels */}
           <Text
             x={offsetX + sheetPixelW / 2 - 30}
             y={offsetY + sheetPixelH + 12}
@@ -206,8 +295,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
             fontFamily="Inter, sans-serif"
             rotation={-90}
           />
-
-          {/* Kerf indicator */}
           <Text
             x={offsetX}
             y={offsetY - 20}
@@ -218,7 +305,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
           />
         </Layer>
 
-        {/* Cutting Shapes Layer */}
         <Layer>
           {cuttings.map((cut) => {
             const isBeingDragged = dragState?.id === cut.id;
@@ -228,32 +314,35 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
               <CuttingShapeKonva
                 key={cut.id}
                 cutting={cut}
-                scale={scale}
+                scale={baseScale}
                 offsetX={offsetX}
                 offsetY={offsetY}
                 isInvalid={isDragInvalid}
-                onDragMove={(e) =>
-                  handleDragMove(cut.id, cut.cuttingType, cut.dimensions, e)
-                }
-                onDragEnd={(e) =>
-                  handleDragEnd(cut.id, cut.cuttingType, cut.dimensions, e)
-                }
+                onDragMove={(e) => handleDragMove(cut.id, cut.cuttingType, cut.dimensions, e)}
+                onDragEnd={(e) => handleDragEnd(cut.id, cut.cuttingType, cut.dimensions, e)}
               />
             );
           })}
         </Layer>
       </Stage>
 
-      {/* Canvas status bar */}
+      <div className="absolute top-2 right-2 flex flex-col gap-2 z-20">
+        <button
+          onClick={() => {
+            setStageScale(1);
+            setStagePos({ x: 0, y: 0 });
+          }}
+          className="bg-bg-elevated/90 hover:bg-bg-hover text-text-secondary hover:text-text-primary px-3 py-1.5 rounded shadow-sm text-xs font-medium border border-border transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          Reset View
+        </button>
+      </div>
+
       <div className="flex items-center justify-between px-4 py-2 text-xs text-text-muted border-t border-border/50 bg-bg-surface/70 backdrop-blur-sm theme-transition">
         <span className="font-medium">{cuttings.length} cut(s) placed</span>
         <span>Grid: {GRID_SIZE}mm snap</span>
         {dragState && (
-          <span
-            className={`font-semibold ${
-              dragState.valid ? "text-success" : "text-danger"
-            }`}
-          >
+          <span className={`font-semibold ${dragState.valid ? "text-success" : "text-danger"}`}>
             {dragState.valid ? "✓ Valid position" : "✗ Invalid — collision detected"}
           </span>
         )}
@@ -262,7 +351,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   );
 }
 
-// ── Individual cutting shape renderer ──
 function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDragMove, onDragEnd }) {
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
@@ -289,6 +377,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
     },
   };
 
+  // hitStrokeWidth makes the touch/grab area wider than the visible stroke
   switch (cuttingType) {
     case "rectangle":
       return (
@@ -299,6 +388,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             fill={colors.fill}
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
+            hitStrokeWidth={20}
             cornerRadius={1}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
             shadowBlur={isInvalid ? 10 : 4}
@@ -312,6 +402,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             fontSize={Math.max(9, Math.min(12, dims.length * scale * 0.1))}
             fontFamily="Inter, sans-serif"
             fontStyle="bold"
+            listening={false}
           />
         </Group>
       );
@@ -324,6 +415,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             fill={colors.fill}
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
+            hitStrokeWidth={20}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
@@ -336,6 +428,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             fontSize={10}
             fontFamily="Inter, sans-serif"
             fontStyle="bold"
+            listening={false}
           />
         </Group>
       );
@@ -353,6 +446,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             fill={colors.fill}
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
+            hitStrokeWidth={20}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
@@ -365,6 +459,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
             fontSize={10}
             fontFamily="Inter, sans-serif"
             fontStyle="bold"
+            listening={false}
           />
         </Group>
       );

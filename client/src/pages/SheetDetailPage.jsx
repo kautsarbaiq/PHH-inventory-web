@@ -139,7 +139,7 @@ export default function SheetDetailPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate("/dashboard")}
-          className="p-2.5 rounded-lg hover:bg-bg-surface text-text-muted hover:text-text-primary transition-colors cursor-pointer theme-transition"
+          className="p-2.5 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors cursor-pointer theme-transition focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-base"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -157,7 +157,7 @@ export default function SheetDetailPage() {
       {/* ── Main Grid: Canvas + Stats ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Canvas (2/3) */}
-        <div className="lg:col-span-2 bg-bg-surface rounded-xl border border-border p-5 theme-transition">
+        <div className="lg:col-span-2 bg-bg-surface rounded-xl border border-border p-4 md:p-5 lg:p-6 theme-transition">
           <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4 flex items-center gap-2">
             <Ruler className="w-4 h-4" /> Visual Canvas
           </h2>
@@ -171,7 +171,7 @@ export default function SheetDetailPage() {
         {/* Stats (1/3) */}
         <div className="space-y-6">
           {/* Donut Chart */}
-          <div className="bg-bg-surface rounded-xl border border-border p-5 theme-transition">
+          <div className="bg-bg-surface rounded-xl border border-border p-4 md:p-5 lg:p-6 theme-transition">
             <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4 flex items-center gap-2">
               <BarChart3 className="w-4 h-4" /> Usage Stats
             </h2>
@@ -207,7 +207,7 @@ export default function SheetDetailPage() {
       </div>
 
       {/* ── Cutting Order Form ── */}
-      <div className="bg-bg-surface rounded-xl border border-border p-6 theme-transition">
+      <div className="bg-bg-surface rounded-xl border border-border p-4 md:p-5 lg:p-6 theme-transition">
         <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-5 flex items-center gap-2">
           <Scissors className="w-4 h-4" /> New Cutting Order
         </h2>
@@ -219,7 +219,7 @@ export default function SheetDetailPage() {
       </div>
 
       {/* ── Cutting History ── */}
-      <div className="bg-bg-surface rounded-xl border border-border p-6 theme-transition">
+      <div className="bg-bg-surface rounded-xl border border-border p-4 md:p-5 lg:p-6 theme-transition">
         <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-5 flex items-center gap-2">
           <Clock className="w-4 h-4" /> Cutting History
         </h2>
@@ -305,7 +305,7 @@ const TYPE_STYLES = {
 function TypeBadge({ type }) {
   const style = TYPE_STYLES[type] || TYPE_STYLES.rectangle;
   return (
-    <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-semibold ${style.bg} ${style.color}`}>
+    <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-md text-xs font-semibold tracking-wide ${style.bg} ${style.color}`}>
       {style.label}
     </span>
   );

@@ -49,7 +49,7 @@ export default function RegisterPage() {
   };
 
   const inputBase =
-    "w-full pl-10 pr-4 py-2.5 bg-bg-elevated border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all text-sm theme-transition";
+    "w-full h-11 pl-11 pr-4 bg-bg-elevated border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all text-sm theme-transition hover:border-text-muted";
   const inputOk = `${inputBase} border-border focus:ring-primary/50 focus:border-primary`;
   const inputErr = `${inputBase} border-danger/50 focus:ring-danger/50 focus:border-danger`;
 
@@ -92,7 +92,7 @@ export default function RegisterPage() {
                 Full Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted shrink-0" />
                 <input
                   id="register-name"
                   type="text"
@@ -117,7 +117,7 @@ export default function RegisterPage() {
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted shrink-0" />
                 <input
                   id="register-email"
                   type="email"
@@ -142,7 +142,7 @@ export default function RegisterPage() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted shrink-0" />
                 <input
                   id="register-password"
                   type="password"
@@ -167,13 +167,13 @@ export default function RegisterPage() {
               id="register-submit"
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md text-sm"
+              className="w-full h-11 flex items-center justify-center gap-3 px-4 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm hover:shadow-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-surface"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4" />
+                  <UserPlus className="w-5 h-5 shrink-0" />
                   Create Account
                 </>
               )}

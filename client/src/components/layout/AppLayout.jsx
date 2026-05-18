@@ -30,7 +30,7 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen flex bg-bg-base theme-transition">
       {/* ── Sidebar ── */}
-      <aside className="w-64 bg-bg-surface border-r border-border flex flex-col shrink-0 theme-transition">
+      <aside className="w-64 bg-bg-surface border-r border-border flex flex-col shrink-0 theme-transition relative z-40">
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -47,13 +47,13 @@ export default function AppLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                `group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
@@ -93,7 +93,7 @@ export default function AppLayout() {
               </div>
               <button
                 onClick={handleSignOut}
-                className="p-1.5 rounded-lg hover:bg-bg-hover text-text-muted hover:text-danger transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-bg-hover text-text-muted hover:text-danger transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-danger/50"
                 title="Sign out"
               >
                 <LogOut className="w-4 h-4" />
@@ -104,8 +104,8 @@ export default function AppLayout() {
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-8 max-w-7xl mx-auto">
+      <main className="flex-1 overflow-auto relative z-0">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>

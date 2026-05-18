@@ -80,9 +80,9 @@ export default function DashboardPage() {
         <button
           id="btn-new-sheet"
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm"
+          className="flex items-center gap-3 px-6 py-3 h-11 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-base"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5 shrink-0" />
           New Sheet
         </button>
       </div>
@@ -90,21 +90,21 @@ export default function DashboardPage() {
       {/* ── Filters ── */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted shrink-0" />
           <input
             id="search-sheets"
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by sheet number..."
-            className="w-full pl-10 pr-4 py-2.5 bg-bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm theme-transition"
+            className="w-full h-11 pl-12 pr-4 bg-bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm theme-transition"
           />
         </div>
         <select
           id="filter-status"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2.5 bg-bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer text-sm theme-transition"
+          className="px-4 h-11 bg-bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer text-sm theme-transition hover:border-text-muted"
         >
           <option value="">All Status</option>
           <option value="active">Active</option>
@@ -122,9 +122,9 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={fetchSheets}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger-light hover:text-white bg-danger/10 hover:bg-danger/30 rounded-lg transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-danger-light hover:text-white bg-danger/10 hover:bg-danger/30 rounded-lg transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-danger/50"
           >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className="w-4 h-4 shrink-0" />
             Retry
           </button>
         </div>
@@ -172,9 +172,9 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${statusCfg.bg} ${statusCfg.color}`}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wide ${statusCfg.bg} ${statusCfg.color}`}
                   >
-                    <StatusIcon className="w-3 h-3" />
+                    <StatusIcon className="w-4 h-4 shrink-0" />
                     {statusCfg.label}
                   </span>
                 </div>

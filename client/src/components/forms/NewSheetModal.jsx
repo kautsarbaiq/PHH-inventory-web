@@ -85,8 +85,8 @@ export default function NewSheetModal({ onClose, onCreated }) {
   };
 
   const inputBase =
-    "w-full px-3 py-2.5 bg-bg-elevated border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all text-sm theme-transition";
-  const inputOk = `${inputBase} border-border focus:ring-primary/50 focus:border-primary`;
+    "w-full h-11 px-3 bg-bg-elevated border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all text-sm theme-transition";
+  const inputOk = `${inputBase} border-border focus:ring-primary/50 focus:border-primary hover:border-text-muted`;
   const inputErr = `${inputBase} border-danger/50 focus:ring-danger/50 focus:border-danger`;
 
   const getInputClass = (name) => (fieldErrors[name] ? inputErr : inputOk);
@@ -119,7 +119,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+            className="p-2 rounded-lg hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-surface"
           >
             <X className="w-5 h-5" />
           </button>
@@ -303,17 +303,17 @@ export default function NewSheetModal({ onClose, onCreated }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-colors cursor-pointer text-sm"
+              className="px-5 py-2.5 h-11 text-text-secondary hover:text-text-primary font-medium transition-colors cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-text-muted/50 rounded-lg"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 disabled:opacity-50 cursor-pointer text-sm shadow-sm hover:shadow-md"
+              className="flex items-center gap-2 px-6 py-2.5 h-11 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-surface"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
               ) : (
                 "Create Sheet"
               )}
