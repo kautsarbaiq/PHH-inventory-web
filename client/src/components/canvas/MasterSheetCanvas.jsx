@@ -1,24 +1,29 @@
 // ============================================================
 // PHH Inventory — Master Sheet Canvas (react-konva)
+// With real-time collision detection during drag
 // ============================================================
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { Stage, Layer, Rect, Circle, Line, Text, Group } from "react-konva";
+import { validatePlacement, getCenterFromTopLeft } from "./CollisionEngine";
 
 const CANVAS_PADDING = 40;
 const GRID_SIZE = 10; // mm
 
 // Shape colors
 const SHAPE_COLORS = {
-  rectangle: { fill: "#3b82f680", stroke: "#3b82f6" },
-  circle: { fill: "#8b5cf680", stroke: "#8b5cf6" },
-  triangle: { fill: "#f59e0b80", stroke: "#f59e0b" },
+  rectangle: { fill: "rgba(59,130,246,0.5)", stroke: "#3b82f6" },
+  circle: { fill: "rgba(139,92,246,0.5)", stroke: "#8b5cf6" },
+  triangle: { fill: "rgba(245,158,11,0.5)", stroke: "#f59e0b" },
 };
+
+const INVALID_COLOR = { fill: "rgba(239,68,68,0.35)", stroke: "#ef4444" };
 
 export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate }) {
   const containerRef = useRef(null);
-  const [canvasWidth, setCanvasWidth] = useState(700);
+  const [canvasWidth] = useState(700);
   const canvasHeight = 400;
+  const [dragState, setDragState] = useState(null); // { id, valid }
 
   // Calculate scale to fit sheet in canvas
   const scale = useMemo(() => {
@@ -37,17 +42,59 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   // Snap to grid
   const snapToGrid = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
 
-  // Handle drag end for a cutting shape
-  const handleDragEnd = (cuttingId, e) => {
-    const node = e.target;
-    // Convert pixel position back to mm
-    const newX = snapToGrid((node.x() - offsetX) / scale);
-    const newY = snapToGrid((node.y() - offsetY) / scale);
+  // Real-time collision check during drag
+  const handleDragMove = useCallback(
+    (cuttingId, cuttingType, dimensions, e) => {
+      const node = e.target;
+      const rawX = (node.x() - offsetX) / scale;
+      const rawY = (node.y() - offsetY) / scale;
+      const snappedX = snapToGrid(rawX);
+      const snappedY = snapToGrid(rawY);
 
-    if (onPositionUpdate) {
-      onPositionUpdate(cuttingId, { positionX: newX, positionY: newY });
-    }
-  };
+      const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
+
+      // Get center for AABB from top-left position
+      const { centerX, centerY } = getCenterFromTopLeft(cuttingType, dims, snappedX, snappedY);
+
+      // Validate against other cuttings (exclude self)
+      const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
+      const result = validatePlacement(
+        sheet,
+        otherCuttings,
+        { cuttingType, dimensions: dims, positionX: snappedX, positionY: snappedY, rotation: 0 }
+      );
+
+      setDragState({ id: cuttingId, valid: result.valid });
+    },
+    [cuttings, sheet, offsetX, offsetY, scale]
+  );
+
+  // Handle drag end for a cutting shape
+  const handleDragEnd = useCallback(
+    (cuttingId, cuttingType, dimensions, e) => {
+      const node = e.target;
+      const newX = snapToGrid((node.x() - offsetX) / scale);
+      const newY = snapToGrid((node.y() - offsetY) / scale);
+
+      const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
+
+      // Final validation
+      const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
+      const result = validatePlacement(
+        sheet,
+        otherCuttings,
+        { cuttingType, dimensions: dims, positionX: newX, positionY: newY, rotation: 0 }
+      );
+
+      setDragState(null);
+
+      if (result.valid && onPositionUpdate) {
+        onPositionUpdate(cuttingId, { positionX: newX, positionY: newY });
+      }
+      // If invalid, node snaps back on next re-render (server state)
+    },
+    [cuttings, sheet, offsetX, offsetY, scale, onPositionUpdate]
+  );
 
   // Render grid lines
   const gridLines = useMemo(() => {
@@ -55,7 +102,6 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
     const gridPx = GRID_SIZE * scale;
     if (gridPx < 4) return lines; // Skip grid if too dense
 
-    // Vertical
     for (let x = 0; x <= sheetPixelW; x += gridPx) {
       lines.push(
         <Line
@@ -63,11 +109,10 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
           points={[offsetX + x, offsetY, offsetX + x, offsetY + sheetPixelH]}
           stroke="#334155"
           strokeWidth={0.5}
-          opacity={0.4}
+          opacity={0.3}
         />
       );
     }
-    // Horizontal
     for (let y = 0; y <= sheetPixelH; y += gridPx) {
       lines.push(
         <Line
@@ -75,7 +120,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
           points={[offsetX, offsetY + y, offsetX + sheetPixelW, offsetY + y]}
           stroke="#334155"
           strokeWidth={0.5}
-          opacity={0.4}
+          opacity={0.3}
         />
       );
     }
@@ -83,11 +128,14 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   }, [sheetPixelW, sheetPixelH, offsetX, offsetY, scale]);
 
   return (
-    <div ref={containerRef} className="bg-bg-base rounded-lg overflow-hidden">
+    <div ref={containerRef} className="bg-bg-base rounded-lg overflow-hidden border border-border/50">
       <Stage width={canvasWidth} height={canvasHeight}>
-        {/* Grid Layer */}
+        {/* Background + Grid */}
         <Layer listening={false}>
-          {/* Sheet background */}
+          {/* Canvas background */}
+          <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill="#0f172a" />
+
+          {/* Sheet surface */}
           <Rect
             x={offsetX}
             y={offsetY}
@@ -102,47 +150,81 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
 
           {/* Dimension labels */}
           <Text
-            x={offsetX}
-            y={offsetY + sheetPixelH + 8}
+            x={offsetX + sheetPixelW / 2 - 25}
+            y={offsetY + sheetPixelH + 10}
             text={`${sheet.length} mm`}
-            fill="#94a3b8"
+            fill="#64748b"
             fontSize={11}
-            fontFamily="Inter"
+            fontFamily="Inter, sans-serif"
+            align="center"
           />
           <Text
-            x={offsetX - 30}
-            y={offsetY + sheetPixelH / 2}
+            x={offsetX - 35}
+            y={offsetY + sheetPixelH / 2 + 15}
             text={`${sheet.width} mm`}
-            fill="#94a3b8"
+            fill="#64748b"
             fontSize={11}
-            fontFamily="Inter"
+            fontFamily="Inter, sans-serif"
             rotation={-90}
+          />
+
+          {/* Kerf indicator */}
+          <Text
+            x={offsetX}
+            y={offsetY - 18}
+            text={`Kerf: ${sheet.kerfAllowance} mm`}
+            fill="#475569"
+            fontSize={10}
+            fontFamily="Inter, sans-serif"
           />
         </Layer>
 
-        {/* Cutting Shapes Layer */}
+        {/* Cutting Shapes */}
         <Layer>
-          {cuttings.map((cut) => (
-            <CuttingShapeKonva
-              key={cut.id}
-              cutting={cut}
-              scale={scale}
-              offsetX={offsetX}
-              offsetY={offsetY}
-              onDragEnd={(e) => handleDragEnd(cut.id, e)}
-            />
-          ))}
+          {cuttings.map((cut) => {
+            const isBeingDragged = dragState?.id === cut.id;
+            const isDragInvalid = isBeingDragged && !dragState.valid;
+
+            return (
+              <CuttingShapeKonva
+                key={cut.id}
+                cutting={cut}
+                scale={scale}
+                offsetX={offsetX}
+                offsetY={offsetY}
+                isInvalid={isDragInvalid}
+                onDragMove={(e) =>
+                  handleDragMove(cut.id, cut.cuttingType, cut.dimensions, e)
+                }
+                onDragEnd={(e) =>
+                  handleDragEnd(cut.id, cut.cuttingType, cut.dimensions, e)
+                }
+              />
+            );
+          })}
         </Layer>
       </Stage>
+
+      {/* Canvas status bar */}
+      <div className="flex items-center justify-between px-3 py-1.5 text-xs text-text-muted border-t border-border/50 bg-bg-surface/50">
+        <span>{cuttings.length} cut(s) placed</span>
+        <span>Grid: {GRID_SIZE}mm snap</span>
+        {dragState && (
+          <span className={dragState.valid ? "text-success" : "text-danger font-medium"}>
+            {dragState.valid ? "✓ Valid position" : "✗ Invalid — collision detected"}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
 
 // Individual cutting shape renderer
-function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, onDragEnd }) {
-  const { cuttingType, dimensions, positionX, positionY } = cutting;
-  const colors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
-  const dims = typeof dimensions === 'string' ? JSON.parse(dimensions) : dimensions;
+function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDragMove, onDragEnd }) {
+  const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
+  const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
+  const colors = isInvalid ? INVALID_COLOR : normalColors;
+  const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
 
   const pixelX = offsetX + positionX * scale;
   const pixelY = offsetY + positionY * scale;
@@ -151,12 +233,16 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, onDragEnd }) {
     x: pixelX,
     y: pixelY,
     draggable: true,
+    onDragMove,
     onDragEnd,
     onMouseEnter: (e) => {
       e.target.getStage().container().style.cursor = "grab";
     },
     onMouseLeave: (e) => {
       e.target.getStage().container().style.cursor = "default";
+    },
+    onDragStart: (e) => {
+      e.target.getStage().container().style.cursor = "grabbing";
     },
   };
 
@@ -169,16 +255,20 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, onDragEnd }) {
             height={dims.width * scale}
             fill={colors.fill}
             stroke={colors.stroke}
-            strokeWidth={1.5}
+            strokeWidth={isInvalid ? 2.5 : 1.5}
             cornerRadius={1}
+            shadowColor={isInvalid ? "#ef4444" : colors.stroke}
+            shadowBlur={isInvalid ? 8 : 3}
+            shadowOpacity={0.3}
           />
           <Text
             x={4}
             y={4}
-            text={`${dims.length}×${dims.width}`}
+            text={jobNumber || `${dims.length}×${dims.width}`}
             fill="white"
-            fontSize={10}
-            fontFamily="Inter"
+            fontSize={Math.max(9, Math.min(12, dims.length * scale * 0.1))}
+            fontFamily="Inter, sans-serif"
+            fontStyle="bold"
           />
         </Group>
       );
@@ -190,15 +280,19 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, onDragEnd }) {
             radius={dims.radius * scale}
             fill={colors.fill}
             stroke={colors.stroke}
-            strokeWidth={1.5}
+            strokeWidth={isInvalid ? 2.5 : 1.5}
+            shadowColor={isInvalid ? "#ef4444" : colors.stroke}
+            shadowBlur={isInvalid ? 8 : 3}
+            shadowOpacity={0.3}
           />
           <Text
-            x={-15}
+            x={-18}
             y={-6}
-            text={`r=${dims.radius}`}
+            text={jobNumber || `r=${dims.radius}`}
             fill="white"
             fontSize={10}
-            fontFamily="Inter"
+            fontFamily="Inter, sans-serif"
+            fontStyle="bold"
           />
         </Group>
       );
@@ -215,15 +309,19 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, onDragEnd }) {
             closed
             fill={colors.fill}
             stroke={colors.stroke}
-            strokeWidth={1.5}
+            strokeWidth={isInvalid ? 2.5 : 1.5}
+            shadowColor={isInvalid ? "#ef4444" : colors.stroke}
+            shadowBlur={isInvalid ? 8 : 3}
+            shadowOpacity={0.3}
           />
           <Text
             x={4}
-            y={dims.height * scale - 14}
-            text={`${dims.base}×${dims.height}`}
+            y={dims.height * scale - 16}
+            text={jobNumber || `${dims.base}×${dims.height}`}
             fill="white"
             fontSize={10}
-            fontFamily="Inter"
+            fontFamily="Inter, sans-serif"
+            fontStyle="bold"
           />
         </Group>
       );

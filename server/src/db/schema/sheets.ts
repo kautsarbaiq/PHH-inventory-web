@@ -4,8 +4,8 @@
 
 import { pgTable, text, timestamp, real, uuid } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { user } from "./auth.js";
-import { cuttingOrders } from "./cuttings.js";
+import { user } from "./auth";
+import { cuttingOrders } from "./cuttings";
 
 export const masterSheets = pgTable("master_sheets", {
   id: uuid("id").primaryKey().defaultRandom(),
