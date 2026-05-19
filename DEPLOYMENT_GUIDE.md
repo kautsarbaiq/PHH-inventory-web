@@ -44,7 +44,7 @@ You must set the runtime environment variables for the application to establish 
 
 | Key | Value | Description |
 | :--- | :--- | :--- |
-| **`DATABASE_URL`** | `postgresql://...` | *Your active PostgreSQL database connection string.* |
+| **`DATABASE_URL`** | `postgresql://postgres.txwsocepzzvnghjxasjj:Kautsar_123@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres` | *Your active PostgreSQL database connection string (use this verified regional connection pooler URL to bypass Render IPv6 routing limits).* |
 | **`BETTER_AUTH_SECRET`** | `phh-inventory-secret-key-must-be-32-chars-long` | *A secure, random 32-character string for authentication hashing.* |
 | **`PORT`** | `10000` | *The default port allocated by Render.* |
 | **`CLIENT_URL`** | `https://your-frontend-domain.vercel.app` | *The secure URL of the deployed Vercel frontend (can temporarily use `http://localhost:5173` until frontend deployment is finalized).* |
