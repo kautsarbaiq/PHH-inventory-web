@@ -17,6 +17,7 @@ export const auth = betterAuth({
       verification: schema.verification,
     },
   }),
+  baseURL: process.env.BETTER_AUTH_URL || "https://phh-inventory-web.onrender.com",
   emailAndPassword: {
     enabled: true,
   },
@@ -38,6 +39,10 @@ export const auth = betterAuth({
   advanced: {
     database: {
       generateId: "uuid",
+    },
+    defaultCookieAttributes: {
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
     },
   },
 });
