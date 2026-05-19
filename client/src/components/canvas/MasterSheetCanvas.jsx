@@ -169,7 +169,12 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
         rotation: 0,
       });
 
-      setDragState({ id: cuttingId, valid: result.valid });
+      setDragState({
+        id: cuttingId,
+        valid: result.valid,
+        x: Math.round(snappedX),
+        y: Math.round(snappedY),
+      });
     },
     [cuttings, sheet, offsetX, offsetY, baseScale]
   );
@@ -236,6 +241,74 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
     return lines;
   }, [sheetPixelW, sheetPixelH, offsetX, offsetY, baseScale, palette.grid]);
 
+  const tickInterval = useMemo(() => {
+    const len = sheet.length;
+    if (len <= 1000) return 100;
+    if (len <= 5000) return 500;
+    if (len <= 10000) return 1000;
+    if (len <= 30000) return 2000;
+    return 5000;
+  }, [sheet.length]);
+
+  const axisTicks = useMemo(() => {
+    const ticks = [];
+    const interval = tickInterval;
+
+    // X Axis Ticks (Horizontal, along the top of the sheet)
+    for (let x = 0; x <= sheet.length; x += interval) {
+      const pxX = offsetX + x * baseScale;
+      ticks.push(
+        <Group key={`x-tick-${x}`}>
+          <Line
+            points={[pxX, offsetY, pxX, offsetY - 5]}
+            stroke={palette.text}
+            strokeWidth={1}
+            opacity={0.5}
+          />
+          <Text
+            x={pxX - 15}
+            y={offsetY - 14}
+            width={30}
+            text={x.toString()}
+            fill={palette.text}
+            fontSize={7.5}
+            fontFamily="Inter, sans-serif"
+            align="center"
+            opacity={0.7}
+          />
+        </Group>
+      );
+    }
+
+    // Y Axis Ticks (Vertical, along the left of the sheet)
+    for (let y = 0; y <= sheet.width; y += interval) {
+      const pxY = offsetY + y * baseScale;
+      ticks.push(
+        <Group key={`y-tick-${y}`}>
+          <Line
+            points={[offsetX, pxY, offsetX - 5, pxY]}
+            stroke={palette.text}
+            strokeWidth={1}
+            opacity={0.5}
+          />
+          <Text
+            x={offsetX - 26}
+            y={pxY - 3}
+            width={20}
+            text={y.toString()}
+            fill={palette.text}
+            fontSize={7.5}
+            fontFamily="Inter, sans-serif"
+            align="right"
+            opacity={0.7}
+          />
+        </Group>
+      );
+    }
+
+    return ticks;
+  }, [sheet.length, sheet.width, offsetX, offsetY, baseScale, palette.text, tickInterval]);
+
   return (
     <div
       ref={containerRef}
@@ -277,6 +350,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
             cornerRadius={2}
           />
           {gridLines}
+          {axisTicks}
           <Text
             x={offsetX + sheetPixelW / 2 - 30}
             y={offsetY + sheetPixelH + 12}
@@ -309,6 +383,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
           {cuttings.map((cut) => {
             const isBeingDragged = dragState?.id === cut.id;
             const isDragInvalid = isBeingDragged && !dragState.valid;
+            const dragCoords = isBeingDragged ? { x: dragState.x, y: dragState.y } : null;
 
             return (
               <CuttingShapeKonva
@@ -318,6 +393,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
                 offsetX={offsetX}
                 offsetY={offsetY}
                 isInvalid={isDragInvalid}
+                dragCoords={dragCoords}
                 onDragMove={(e) => handleDragMove(cut.id, cut.cuttingType, cut.dimensions, e)}
                 onDragEnd={(e) => handleDragEnd(cut.id, cut.cuttingType, cut.dimensions, e)}
               />
@@ -351,7 +427,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   );
 }
 
-function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDragMove, onDragEnd }) {
+function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd }) {
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
   const colors = isInvalid ? INVALID_COLOR : normalColors;
@@ -377,11 +453,54 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
     },
   };
 
+  const renderTooltip = () => {
+    if (!dragCoords) return null;
+    
+    let tooltipY = -24;
+    let tooltipX = 0;
+    
+    if (cuttingType === "rectangle") {
+      tooltipX = (dims.length * scale) / 2 - 45;
+    } else if (cuttingType === "circle") {
+      tooltipX = -45;
+      tooltipY = -dims.radius * scale - 24;
+    } else if (cuttingType === "triangle") {
+      tooltipX = (dims.base * scale) / 2 - 45;
+    }
+    
+    return (
+      <Group x={tooltipX} y={tooltipY} listening={false}>
+        <Rect
+          width={90}
+          height={18}
+          fill="#1e293b"
+          stroke={isInvalid ? "#ef4444" : "#3b82f6"}
+          strokeWidth={1}
+          cornerRadius={3}
+          shadowBlur={4}
+          shadowColor="black"
+          shadowOpacity={0.3}
+        />
+        <Text
+          width={90}
+          y={4}
+          text={`X:${dragCoords.x} Y:${dragCoords.y}`}
+          fill="#f8fafc"
+          fontSize={9}
+          fontFamily="Inter, sans-serif"
+          fontStyle="bold"
+          align="center"
+        />
+      </Group>
+    );
+  };
+
   // hitStrokeWidth makes the touch/grab area wider than the visible stroke
   switch (cuttingType) {
     case "rectangle":
       return (
         <Group {...commonProps}>
+          {renderTooltip()}
           <Rect
             width={dims.length * scale}
             height={dims.width * scale}
@@ -410,6 +529,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
     case "circle":
       return (
         <Group {...commonProps}>
+          {renderTooltip()}
           <Circle
             radius={dims.radius * scale}
             fill={colors.fill}
@@ -436,6 +556,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, onDrag
     case "triangle":
       return (
         <Group {...commonProps}>
+          {renderTooltip()}
           <Line
             points={[
               0, dims.height * scale,
