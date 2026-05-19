@@ -25,8 +25,8 @@ const CANVAS_THEMES = {
     sheet: "#1e293b",
     sheetStroke: "#475569",
     grid: "#334155",
-    text: "#64748b",
-    kerfText: "#475569",
+    text: "#94a3b8",
+    kerfText: "#64748b",
   },
   light: {
     bg: "#f8fafc",
@@ -559,16 +559,18 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
           />
-          <Text
-            x={6}
-            y={5}
-            text={jobNumber || `${dims.length}×${dims.width}`}
-            fill="white"
-            fontSize={Math.max(9, Math.min(12, dims.length * scale * 0.1))}
-            fontFamily="Inter, sans-serif"
-            fontStyle="bold"
-            listening={false}
-          />
+          {dims.length * scale > 45 && dims.width * scale > 22 && (
+            <Text
+              x={6}
+              y={5}
+              text={jobNumber || `${dims.length}×${dims.width}`}
+              fill="white"
+              fontSize={Math.max(9, Math.min(12, dims.length * scale * 0.1))}
+              fontFamily="Inter, sans-serif"
+              fontStyle="bold"
+              listening={false}
+            />
+          )}
         </Group>
       );
 
@@ -588,16 +590,18 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
           />
-          <Text
-            x={-18}
-            y={-6}
-            text={jobNumber || `r=${dims.radius}`}
-            fill="white"
-            fontSize={10}
-            fontFamily="Inter, sans-serif"
-            fontStyle="bold"
-            listening={false}
-          />
+          {dims.radius * scale > 22 && (
+            <Text
+              x={-18}
+              y={-6}
+              text={jobNumber || `r=${dims.radius}`}
+              fill="white"
+              fontSize={10}
+              fontFamily="Inter, sans-serif"
+              fontStyle="bold"
+              listening={false}
+            />
+          )}
         </Group>
       );
 
@@ -622,16 +626,18 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
           />
-          <Text
-            x={6}
-            y={dims.height * scale - 16}
-            text={jobNumber || `${dims.base}×${dims.height}`}
-            fill="white"
-            fontSize={10}
-            fontFamily="Inter, sans-serif"
-            fontStyle="bold"
-            listening={false}
-          />
+          {dims.base * scale > 45 && dims.height * scale > 25 && (
+            <Text
+              x={6}
+              y={dims.height * scale - 16}
+              text={jobNumber || `${dims.base}×${dims.height}`}
+              fill="white"
+              fontSize={10}
+              fontFamily="Inter, sans-serif"
+              fontStyle="bold"
+              listening={false}
+            />
+          )}
         </Group>
       );
 

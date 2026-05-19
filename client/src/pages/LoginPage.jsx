@@ -36,7 +36,7 @@ export default function LoginPage() {
   };
 
   const inputClass =
-    "w-full h-11 pl-11 pr-4 bg-bg-elevated border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm theme-transition hover:border-text-muted";
+    "w-full h-11 pl-12 pr-4 bg-bg-elevated border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm theme-transition hover:border-text-muted";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-base px-4 theme-transition">

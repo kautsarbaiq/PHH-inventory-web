@@ -49,7 +49,7 @@ export default function RegisterPage() {
   };
 
   const inputBase =
-    "w-full h-11 pl-11 pr-4 bg-bg-elevated border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all text-sm theme-transition hover:border-text-muted";
+    "w-full h-11 pl-12 pr-4 bg-bg-elevated border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 transition-all text-sm theme-transition hover:border-text-muted";
   const inputOk = `${inputBase} border-border focus:ring-primary/50 focus:border-primary`;
   const inputErr = `${inputBase} border-danger/50 focus:ring-danger/50 focus:border-danger`;
 
