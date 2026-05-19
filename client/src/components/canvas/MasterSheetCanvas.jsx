@@ -38,10 +38,44 @@ const CANVAS_THEMES = {
   },
 };
 
-export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate }) {
+export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, newCuttingPreview }) {
   const containerRef = useRef(null);
   const { isDark } = useTheme();
   const palette = isDark ? CANVAS_THEMES.dark : CANVAS_THEMES.light;
+
+  const previewCut = useMemo(() => {
+    if (!newCuttingPreview) return null;
+    const { cuttingType, dimensions, positionX, positionY, jobNumber } = newCuttingPreview;
+
+    // Validate that inputs are valid positive numbers
+    let validDims = false;
+    if (cuttingType === "rectangle" && dimensions.length > 0 && dimensions.width > 0) validDims = true;
+    if (cuttingType === "circle" && dimensions.radius > 0) validDims = true;
+    if (cuttingType === "triangle" && dimensions.base > 0 && dimensions.height > 0) validDims = true;
+
+    if (!validDims) return null;
+
+    const posX = parseFloat(positionX) || 0;
+    const posY = parseFloat(positionY) || 0;
+
+    // Use validatePlacement to check if it's colliding
+    const result = validatePlacement(sheet, cuttings, {
+      cuttingType,
+      dimensions,
+      positionX: posX,
+      positionY: posY,
+      rotation: 0,
+    });
+
+    return {
+      cuttingType,
+      dimensions,
+      positionX: posX,
+      positionY: posY,
+      jobNumber: jobNumber || "DRAFT",
+      isInvalid: !result.valid,
+    };
+  }, [newCuttingPreview, sheet, cuttings]);
 
   const [canvasWidth, setCanvasWidth] = useState(700);
   const canvasHeight = 420;
@@ -399,6 +433,16 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
               />
             );
           })}
+          {previewCut && (
+            <CuttingShapeKonva
+              cutting={previewCut}
+              scale={baseScale}
+              offsetX={offsetX}
+              offsetY={offsetY}
+              isInvalid={previewCut.isInvalid}
+              isPreview={true}
+            />
+          )}
         </Layer>
       </Stage>
 
@@ -427,7 +471,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate })
   );
 }
 
-function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd }) {
+function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd, isPreview }) {
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
   const colors = isInvalid ? INVALID_COLOR : normalColors;
@@ -439,17 +483,17 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
   const commonProps = {
     x: pixelX,
     y: pixelY,
-    draggable: true,
-    onDragMove,
-    onDragEnd,
+    draggable: !isPreview,
+    onDragMove: isPreview ? undefined : onDragMove,
+    onDragEnd: isPreview ? undefined : onDragEnd,
     onMouseEnter: (e) => {
-      e.target.getStage().container().style.cursor = "grab";
+      if (!isPreview) e.target.getStage().container().style.cursor = "grab";
     },
     onMouseLeave: (e) => {
-      e.target.getStage().container().style.cursor = "default";
+      if (!isPreview) e.target.getStage().container().style.cursor = "default";
     },
     onDragStart: (e) => {
-      e.target.getStage().container().style.cursor = "grabbing";
+      if (!isPreview) e.target.getStage().container().style.cursor = "grabbing";
     },
   };
 
@@ -507,7 +551,9 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             fill={colors.fill}
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
-            hitStrokeWidth={20}
+            dash={isPreview ? [4, 4] : undefined}
+            opacity={isPreview ? 0.6 : 1}
+            hitStrokeWidth={isPreview ? 0 : 20}
             cornerRadius={1}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
             shadowBlur={isInvalid ? 10 : 4}
@@ -535,7 +581,9 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             fill={colors.fill}
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
-            hitStrokeWidth={20}
+            dash={isPreview ? [4, 4] : undefined}
+            opacity={isPreview ? 0.6 : 1}
+            hitStrokeWidth={isPreview ? 0 : 20}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}
@@ -567,7 +615,9 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             fill={colors.fill}
             stroke={colors.stroke}
             strokeWidth={isInvalid ? 2.5 : 1.5}
-            hitStrokeWidth={20}
+            dash={isPreview ? [4, 4] : undefined}
+            opacity={isPreview ? 0.6 : 1}
+            hitStrokeWidth={isPreview ? 0 : 20}
             shadowColor={isInvalid ? "#ef4444" : colors.stroke}
             shadowBlur={isInvalid ? 10 : 4}
             shadowOpacity={0.3}

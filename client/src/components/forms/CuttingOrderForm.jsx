@@ -4,7 +4,7 @@
 // improved spacing, loading states, success feedback
 // ============================================================
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cuttingApi } from "../../lib/api";
 import { calculateCutArea, formatArea } from "../../lib/calculations";
 import { AlertCircle, Plus, CheckCircle2 } from "lucide-react";
@@ -15,7 +15,7 @@ const CUTTING_TYPES = [
   { value: "triangle", label: "△ Triangle" },
 ];
 
-export default function CuttingOrderForm({ sheetId, sheet, onCreated }) {
+export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewChange }) {
   const [form, setForm] = useState({
     jobNumber: "",
     cuttingType: "rectangle",
@@ -28,6 +28,12 @@ export default function CuttingOrderForm({ sheetId, sheet, onCreated }) {
     positionY: "0",
     notes: "",
   });
+
+  useEffect(() => {
+    if (onPreviewChange) {
+      onPreviewChange(form);
+    }
+  }, [form, onPreviewChange]);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);

@@ -28,6 +28,37 @@ export default function SheetDetailPage() {
   const [cuttings, setCuttings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [newCuttingPreview, setNewCuttingPreview] = useState(null);
+
+  const handlePreviewChange = useCallback((formData) => {
+    if (!formData) {
+      setNewCuttingPreview(null);
+      return;
+    }
+
+    let dims = {};
+    const l = parseFloat(formData.length);
+    const w = parseFloat(formData.width);
+    const r = parseFloat(formData.radius);
+    const b = parseFloat(formData.base);
+    const h = parseFloat(formData.height);
+
+    if (formData.cuttingType === "rectangle") {
+      dims = { length: l, width: w };
+    } else if (formData.cuttingType === "circle") {
+      dims = { radius: r };
+    } else if (formData.cuttingType === "triangle") {
+      dims = { base: b, height: h };
+    }
+
+    setNewCuttingPreview({
+      cuttingType: formData.cuttingType,
+      dimensions: dims,
+      positionX: parseFloat(formData.positionX) || 0,
+      positionY: parseFloat(formData.positionY) || 0,
+      jobNumber: formData.jobNumber || "Draft",
+    });
+  }, []);
 
   const fetchData = useCallback(async () => {
     setError("");
@@ -165,6 +196,7 @@ export default function SheetDetailPage() {
             sheet={sheet}
             cuttings={cuttings}
             onPositionUpdate={handlePositionUpdate}
+            newCuttingPreview={newCuttingPreview}
           />
         </div>
 
@@ -215,6 +247,7 @@ export default function SheetDetailPage() {
           sheetId={id}
           sheet={sheet}
           onCreated={handleCuttingCreated}
+          onPreviewChange={handlePreviewChange}
         />
       </div>
 
