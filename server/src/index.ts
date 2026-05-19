@@ -10,6 +10,7 @@ import { auth } from "./lib/auth.js";
 import { apiRoutes } from "./routes/index.js";
 
 const app = express();
+app.set("trust proxy", true); // Trust Render load balancer proxy for secure cookies (HTTPS)
 const PORT = process.env.PORT || 3001;
 
 // ---- Global Middlewares ----
