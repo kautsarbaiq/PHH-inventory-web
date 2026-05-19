@@ -3,6 +3,8 @@
 // ============================================================
 
 import "dotenv/config";
+import dns from "dns";
+dns.setDefaultResultOrder("ipv4first"); // Force IPv4 first to resolve ENETUNREACH on Render/IPv6
 import express from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
