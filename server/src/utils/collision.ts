@@ -88,6 +88,42 @@ interface ExistingCutting {
 }
 
 /**
+ * Get center position of a shape for AABB calculation.
+ * Konva positions shapes at top-left, but AABB needs center.
+ */
+export function getCenterFromTopLeft(
+  type: string,
+  dims: any,
+  topLeftX: number,
+  topLeftY: number
+): { centerX: number; centerY: number } {
+  switch (type) {
+    case "rectangle": {
+      const d = dims as { length: number; width: number };
+      return {
+        centerX: topLeftX + d.length / 2,
+        centerY: topLeftY + d.width / 2,
+      };
+    }
+    case "circle": {
+      return {
+        centerX: topLeftX,
+        centerY: topLeftY,
+      };
+    }
+    case "triangle": {
+      const d = dims as { base: number; height: number };
+      return {
+        centerX: topLeftX + d.base / 2,
+        centerY: topLeftY + d.height / 2,
+      };
+    }
+    default:
+      return { centerX: topLeftX, centerY: topLeftY };
+  }
+}
+
+/**
  * Validate that a new cutting placement is valid:
  * 1. Within sheet boundaries
  * 2. No overlap with existing cuttings
@@ -107,12 +143,19 @@ export function validatePlacement(
 ): ValidationResult {
   const errors: string[] = [];
 
+  const { centerX, centerY } = getCenterFromTopLeft(
+    newCutting.cuttingType,
+    newCutting.dimensions,
+    newCutting.positionX,
+    newCutting.positionY
+  );
+
   // Get bounding box for the new cutting (with kerf margin)
   const newBB = getBoundingBox(
     newCutting.cuttingType,
     newCutting.dimensions,
-    newCutting.positionX,
-    newCutting.positionY,
+    centerX,
+    centerY,
     newCutting.rotation,
     kerfAllowance
   );
@@ -129,11 +172,18 @@ export function validatePlacement(
 
   // 2. Overlap check against all existing cuttings
   for (const existing of existingCuttings) {
-    const existingBB = getBoundingBox(
+    const { centerX: existCX, centerY: existCY } = getCenterFromTopLeft(
       existing.cuttingType,
       existing.dimensions,
       existing.positionX,
-      existing.positionY,
+      existing.positionY
+    );
+
+    const existingBB = getBoundingBox(
+      existing.cuttingType,
+      existing.dimensions,
+      existCX,
+      existCY,
       existing.rotation,
       kerfAllowance
     );
@@ -151,3 +201,4 @@ export function validatePlacement(
     errors,
   };
 }
+

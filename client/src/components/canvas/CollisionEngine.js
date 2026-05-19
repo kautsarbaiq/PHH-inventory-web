@@ -87,11 +87,18 @@ export function validatePlacement(sheet, existingCuttings, newCutting) {
   const errors = [];
   const kerf = sheet.kerfAllowance || 0;
 
-  const newBB = getBoundingBox(
+  const { centerX, centerY } = getCenterFromTopLeft(
     newCutting.cuttingType,
     newCutting.dimensions,
     newCutting.positionX,
-    newCutting.positionY,
+    newCutting.positionY
+  );
+
+  const newBB = getBoundingBox(
+    newCutting.cuttingType,
+    newCutting.dimensions,
+    centerX,
+    centerY,
     newCutting.rotation || 0,
     kerf
   );
@@ -103,13 +110,22 @@ export function validatePlacement(sheet, existingCuttings, newCutting) {
 
   // 2. Overlap check
   for (const existing of existingCuttings) {
+    const existDims = typeof existing.dimensions === "string"
+      ? JSON.parse(existing.dimensions)
+      : existing.dimensions;
+
+    const { centerX: existCX, centerY: existCY } = getCenterFromTopLeft(
+      existing.cuttingType,
+      existDims,
+      existing.positionX,
+      existing.positionY
+    );
+
     const existBB = getBoundingBox(
       existing.cuttingType,
-      typeof existing.dimensions === "string"
-        ? JSON.parse(existing.dimensions)
-        : existing.dimensions,
-      existing.positionX,
-      existing.positionY,
+      existDims,
+      existCX,
+      existCY,
       existing.rotation || 0,
       kerf
     );
