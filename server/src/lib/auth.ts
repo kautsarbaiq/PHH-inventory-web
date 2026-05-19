@@ -21,7 +21,9 @@ export const auth = betterAuth({
     enabled: true,
   },
   trustedOrigins: [
-    process.env.CLIENT_URL || "http://localhost:5173",
+    "https://phh-inventory-web-client.vercel.app",
+    "http://localhost:5173",
+    ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL.replace(/\/$/, "")] : [])
   ],
   user: {
     additionalFields: {
