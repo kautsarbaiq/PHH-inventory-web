@@ -25,14 +25,32 @@ app.use(
   })
 );
 
+import { db } from "./db/index.js";
+import { sql } from "drizzle-orm";
+
 // ---- Better Auth handler MUST be BEFORE express.json() ----
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
 
 // ---- Health Check ----
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error("Database health check failed:", err);
+    res.status(500).json({
+      status: "error",
+      database: "failed",
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // ---- API Routes ----
