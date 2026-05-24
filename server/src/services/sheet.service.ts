@@ -2,7 +2,7 @@
 // PHH Inventory — Sheet Service
 // ============================================================
 
-import { eq, ne, desc, sql, and, ilike, gte } from "drizzle-orm";
+import { eq, ne, desc, sql, and, ilike, gte, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { masterSheets } from "../db/schema/sheets.js";
 import { cuttingOrders } from "../db/schema/cuttings.js";
@@ -265,6 +265,8 @@ export class SheetService {
     thickness?: number;
     minLength?: number;
     minWidth?: number;
+    isRootOnly?: boolean;
+    parentId?: string;
   }) {
     const page = params.page ?? 1;
     const limit = params.limit ?? 20;
@@ -288,6 +290,12 @@ export class SheetService {
     }
     if (params.minWidth !== undefined && params.minWidth > 0) {
       conditions.push(gte(masterSheets.width, params.minWidth));
+    }
+    if (params.isRootOnly) {
+      conditions.push(isNull(masterSheets.parentId));
+    }
+    if (params.parentId) {
+      conditions.push(eq(masterSheets.parentId, params.parentId));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

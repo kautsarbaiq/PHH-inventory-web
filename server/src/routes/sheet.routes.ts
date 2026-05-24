@@ -21,13 +21,15 @@ router.use(requireAuth);
  */
 router.get("/", async (req, res) => {
   try {
-    const { page, limit, search, status, excludeStatus, thickness, minLength, minWidth } = req.query;
+    const { page, limit, search, status, excludeStatus, thickness, minLength, minWidth, isRootOnly, parentId } = req.query;
     const result = await sheetService.listSheets({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       search: search as string | undefined,
       status: status as string | undefined,
       excludeStatus: excludeStatus as string | undefined,
+      isRootOnly: isRootOnly === 'true',
+      parentId: parentId as string | undefined,
       thickness: thickness ? Number(thickness) : undefined,
       minLength: minLength ? Number(minLength) : undefined,
       minWidth: minWidth ? Number(minWidth) : undefined,

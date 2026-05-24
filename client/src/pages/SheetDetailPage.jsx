@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { sheetApi, cuttingApi } from "../lib/api";
-import { formatArea, formatPercent } from "../lib/calculations";
+import { formatArea, formatPercent, calculateWeight, formatWeight } from "../lib/calculations";
 import {
   ArrowLeft,
   Ruler,
@@ -23,8 +23,8 @@ import MasterSheetCanvas from "../components/canvas/MasterSheetCanvas";
 import CuttingOrderForm from "../components/forms/CuttingOrderForm";
 import UsageDonutChart from "../components/dashboard/UsageDonutChart";
 import GenealogyTree from "../components/sheet/GenealogyTree";
-import SonSheetModal from "../components/forms/SonSheetModal";
 import CuttingHistoryModal from "../components/sheet/CuttingHistoryModal";
+import SelectCuttingModal from "../components/forms/SelectCuttingModal";
 
 export default function SheetDetailPage() {
   const { id } = useParams();
@@ -39,7 +39,7 @@ export default function SheetDetailPage() {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const handleArchiveSheet = async () => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus sheet ini? Semua anak sheet (son sheets) dan cutting orders di dalamnya juga akan terpengaruh.")) return;
+    if (!window.confirm("Are you sure you want to delete this sheet? All its son sheets and cutting orders will also be affected.")) return;
     try {
       await sheetApi.archive(id);
       navigate("/dashboard");
@@ -96,7 +96,7 @@ export default function SheetDetailPage() {
       setGenealogy(genealogyRes.data.data || null);
     } catch (err) {
       console.error("Failed to load sheet:", err);
-      setError("Gagal memuat data sheet. Periksa koneksi server.");
+      setError("Failed to load sheet data. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -160,6 +160,11 @@ export default function SheetDetailPage() {
   const scrapPct =
     sheet.totalArea > 0 ? ((sheet.scrapArea || 0) / sheet.totalArea) * 100 : 0;
 
+  const totalWeight = calculateWeight(sheet);
+  const usedWeight = totalWeight * (usedPct / 100);
+  const availWeight = totalWeight * (availPct / 100);
+  const scrapWeight = totalWeight * (scrapPct / 100);
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* ═══ Row 1: Header bar (fixed) ═══ */}
@@ -179,6 +184,10 @@ export default function SheetDetailPage() {
             <span className="font-medium">
               {sheet.length}×{sheet.width}×{sheet.thickness} mm
             </span>
+            {" "}•{" "}
+            <span className="font-semibold text-primary">
+              {formatWeight(calculateWeight(sheet))}
+            </span>
           </p>
         </div>
         {/* Son Sheet Button */}
@@ -196,7 +205,7 @@ export default function SheetDetailPage() {
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer shrink-0"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          Hapus Sheet
+          Delete Sheet
         </button>
       </div>
 
@@ -235,6 +244,12 @@ export default function SheetDetailPage() {
                 <StatRow label="Available" value={formatArea(sheet.availableArea || 0)} color="text-primary" />
                 <StatRow label="Scrap" value={formatArea(sheet.scrapArea || 0)} color="text-scrap" />
                 <div className="border-t border-border/50 pt-1.5 space-y-1.5">
+                  <StatRow label="Total Weight" value={formatWeight(totalWeight)} />
+                  <StatRow label="Used Weight" value={formatWeight(usedWeight)} color="text-danger" />
+                  <StatRow label="Available Weight" value={formatWeight(availWeight)} color="text-primary" />
+                  <StatRow label="Scrap Weight" value={formatWeight(scrapWeight)} color="text-scrap" />
+                </div>
+                <div className="border-t border-border/50 pt-1.5 space-y-1.5">
                   <StatRow label="Cuts" value={sheet.cuttingCount || 0} />
                   <StatRow label="Kerf" value={`${sheet.kerfAllowance} mm`} />
                 </div>
@@ -272,8 +287,9 @@ export default function SheetDetailPage() {
 
       {/* Son Sheet Modal */}
       {showSonModal && (
-        <SonSheetModal
-          parentSheet={sheet}
+        <SelectCuttingModal
+          sheetId={id}
+          cuttings={cuttings}
           onClose={() => setShowSonModal(false)}
           onCreated={() => {
             setShowSonModal(false);

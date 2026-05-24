@@ -189,7 +189,7 @@ export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewC
       {success && (
         <div className="flex items-center gap-2.5 p-3.5 rounded-lg bg-success/10 border border-success/20 text-success-light text-sm animate-fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>Cutting berhasil ditambahkan!</span>
+          <span>Cutting successfully added!</span>
         </div>
       )}
 

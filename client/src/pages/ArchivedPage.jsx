@@ -49,7 +49,7 @@ export default function ArchivedPage() {
       }));
     } catch (err) {
       console.error("Failed to fetch archived sheets:", err);
-      setError("Gagal memuat data sheet. Pastikan server backend berjalan.");
+      setError("Failed to load sheet data. Make sure the backend server is running.");
     } finally {
       setLoading(false);
     }

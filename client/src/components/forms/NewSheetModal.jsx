@@ -15,7 +15,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
     length: "",
     width: "",
     thickness: "",
-    density: "",
+    weight: "",
     kerfAllowance: "2",
     notes: "",
   });
@@ -44,13 +44,13 @@ export default function NewSheetModal({ onClose, onCreated }) {
     const l = parseFloat(form.length);
     const w = parseFloat(form.width);
     const t = parseFloat(form.thickness);
-    const d = parseFloat(form.density);
+    const wgt = parseFloat(form.weight);
     const k = parseFloat(form.kerfAllowance);
     
     if (isNaN(l) || l < 5) errors.length = "Min 5 mm";
     if (isNaN(w) || w < 5) errors.width = "Min 5 mm";
     if (isNaN(t) || t < 0.1) errors.thickness = "Min 0.1 mm";
-    if (isNaN(d) || d <= 0) errors.density = "Density must be positive";
+    if (isNaN(wgt) || wgt <= 0) errors.weight = "Weight must be positive";
     if (isNaN(k) || k < 0) errors.kerfAllowance = "Min 0 mm";
 
     setFieldErrors(errors);
@@ -72,7 +72,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
         length: parseFloat(form.length),
         width: parseFloat(form.width),
         thickness: parseFloat(form.thickness),
-        density: parseFloat(form.density),
+        density: parseFloat(form.weight) / (parseFloat(form.length) * parseFloat(form.width) * parseFloat(form.thickness)),
         kerfAllowance: parseFloat(form.kerfAllowance),
         notes: form.notes || undefined,
       });
@@ -113,11 +113,11 @@ export default function NewSheetModal({ onClose, onCreated }) {
               <Package className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-text-primary leading-tight">
+              <h2 className="text-xl font-bold text-text-primary leading-tight">
                 New Master Sheet
               </h2>
-              <p className="text-xs text-text-muted mt-0.5">
-                Register incoming material
+              <p className="text-sm text-text-muted mt-0.5">
+                Register a new master sheet from goods receipt
               </p>
             </div>
           </div>
@@ -130,217 +130,221 @@ export default function NewSheetModal({ onClose, onCreated }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-6 space-y-5">
-          {error && (
-            <div className="flex items-center gap-2.5 p-3.5 rounded-lg bg-danger/10 border border-danger/20 text-danger-light text-sm animate-fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-6 space-y-5">
+            {error && (
+              <div className="flex items-center gap-2.5 p-3.5 rounded-lg bg-danger/10 border border-danger/20 text-danger-light text-sm animate-fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
+              </div>
+            )}
 
-          {/* Row 1: Sheet # + Grade */}
-          <div className="grid grid-cols-2 gap-4">
+            {/* Row 1: Sheet # + Grade */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Sheet Number
+                </label>
+                <input
+                  name="sheetNumber"
+                  value={form.sheetNumber}
+                  onChange={handleChange}
+                  placeholder="SH-001"
+                  required
+                  className={getInputClass("sheetNumber")}
+                />
+                {fieldErrors.sheetNumber && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.sheetNumber}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Grade
+                </label>
+                <input
+                  name="grade"
+                  value={form.grade}
+                  onChange={handleChange}
+                  placeholder="SS304"
+                  required
+                  className={getInputClass("grade")}
+                />
+                {fieldErrors.grade && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.grade}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Supplier */}
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Sheet Number
+                Supplier
               </label>
               <input
-                name="sheetNumber"
-                value={form.sheetNumber}
+                name="supplier"
+                value={form.supplier}
                 onChange={handleChange}
-                placeholder="SH-001"
+                placeholder="PT Krakatau Steel"
                 required
-                className={getInputClass("sheetNumber")}
+                className={getInputClass("supplier")}
               />
-              {fieldErrors.sheetNumber && (
-                <p className="text-xs text-danger-light mt-1">{fieldErrors.sheetNumber}</p>
+              {fieldErrors.supplier && (
+                <p className="text-xs text-danger-light mt-1">{fieldErrors.supplier}</p>
               )}
             </div>
+
+            {/* Dimensions (Thickness, Weight, Width) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Thickness (mm)
+                </label>
+                <input
+                  name="thickness"
+                  type="number"
+                  value={form.thickness}
+                  onChange={handleChange}
+                  placeholder="10"
+                  required
+                  min="0.1"
+                  step="any"
+                  className={getInputClass("thickness")}
+                />
+                {fieldErrors.thickness && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.thickness}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Weight (kg) <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="weight"
+                  value={form.weight}
+                  onChange={handleChange}
+                  placeholder="e.g. 7.85"
+                  step="any"
+                  min="0"
+                  className={getInputClass("weight")}
+                />
+                {fieldErrors.weight && (
+                  <span className="text-[10px] text-danger mt-1 font-medium">{fieldErrors.weight}</span>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Width (mm)
+                </label>
+                <input
+                  name="width"
+                  type="number"
+                  value={form.width}
+                  onChange={handleChange}
+                  placeholder="1000"
+                  required
+                  min="5"
+                  step="any"
+                  className={getInputClass("width")}
+                />
+                {fieldErrors.width && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.width}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Length + Kerf */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Length (mm)
+                </label>
+                <input
+                  name="length"
+                  type="number"
+                  value={form.length}
+                  onChange={handleChange}
+                  placeholder="2000"
+                  required
+                  min="5"
+                  step="any"
+                  className={getInputClass("length")}
+                />
+                {fieldErrors.length && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.length}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Kerf Allowance (mm)
+                </label>
+                <input
+                  name="kerfAllowance"
+                  type="number"
+                  value={form.kerfAllowance}
+                  onChange={handleChange}
+                  placeholder="2"
+                  min="0"
+                  step="any"
+                  className={getInputClass("kerfAllowance")}
+                />
+                {fieldErrors.kerfAllowance ? (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.kerfAllowance}</p>
+                ) : (
+                  <p className="text-xs text-text-muted mt-1.5">
+                    Width of material consumed by the cutting tool
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Notes */}
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Grade
+                Notes (optional)
               </label>
-              <input
-                name="grade"
-                value={form.grade}
+              <textarea
+                name="notes"
+                value={form.notes}
                 onChange={handleChange}
-                placeholder="SS304"
-                required
-                className={getInputClass("grade")}
+                rows={2}
+                placeholder="Additional info..."
+                className={inputOk + " resize-none"}
               />
-              {fieldErrors.grade && (
-                <p className="text-xs text-danger-light mt-1">{fieldErrors.grade}</p>
-              )}
             </div>
-          </div>
 
-          {/* Supplier */}
-          <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-              Supplier
-            </label>
-            <input
-              name="supplier"
-              value={form.supplier}
-              onChange={handleChange}
-              placeholder="PT Krakatau Steel"
-              required
-              className={getInputClass("supplier")}
-            />
-            {fieldErrors.supplier && (
-              <p className="text-xs text-danger-light mt-1">{fieldErrors.supplier}</p>
+            {/* Calculated area preview */}
+            {areaPreview && (
+              <div className="p-3.5 rounded-lg bg-primary/5 border border-primary/10 text-sm theme-transition">
+                <span className="text-text-secondary">Total Area: </span>
+                <span className="font-bold text-primary tabular-nums">
+                  {areaPreview} mm²
+                </span>
+              </div>
             )}
           </div>
-
-          {/* Dimensions (Thickness first, then Length, then Width) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Thickness (mm)
-              </label>
-              <input
-                name="thickness"
-                type="number"
-                value={form.thickness}
-                onChange={handleChange}
-                placeholder="10"
-                required
-                min="0.1"
-                step="any"
-                className={getInputClass("thickness")}
-              />
-              {fieldErrors.thickness && (
-                <p className="text-xs text-danger-light mt-1">{fieldErrors.thickness}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Length (mm)
-              </label>
-              <input
-                name="length"
-                type="number"
-                value={form.length}
-                onChange={handleChange}
-                placeholder="2000"
-                required
-                min="5"
-                step="any"
-                className={getInputClass("length")}
-              />
-              {fieldErrors.length && (
-                <p className="text-xs text-danger-light mt-1">{fieldErrors.length}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Width (mm)
-              </label>
-              <input
-                name="width"
-                type="number"
-                value={form.width}
-                onChange={handleChange}
-                placeholder="1000"
-                required
-                min="5"
-                step="any"
-                className={getInputClass("width")}
-              />
-              {fieldErrors.width && (
-                <p className="text-xs text-danger-light mt-1">{fieldErrors.width}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Density */}
-          <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-              Density (g/cm³)
-            </label>
-            <input
-              name="density"
-              type="number"
-              value={form.density}
-              onChange={handleChange}
-              placeholder="0.00000785"
-              required
-              min="0"
-              step="any"
-              className={getInputClass("density")}
-            />
-            {fieldErrors.density && (
-              <p className="text-xs text-danger-light mt-1">{fieldErrors.density}</p>
-            )}
-          </div>
-
-          {/* Kerf */}
-          <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-              Kerf Allowance (mm)
-            </label>
-            <input
-              name="kerfAllowance"
-              type="number"
-              value={form.kerfAllowance}
-              onChange={handleChange}
-              placeholder="2"
-              min="0"
-              step="any"
-              className={getInputClass("kerfAllowance")}
-            />
-            {fieldErrors.kerfAllowance ? (
-              <p className="text-xs text-danger-light mt-1">{fieldErrors.kerfAllowance}</p>
-            ) : (
-              <p className="text-xs text-text-muted mt-1.5">
-                Width of material consumed by the cutting tool
-              </p>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-              Notes (optional)
-            </label>
-            <textarea
-              name="notes"
-              value={form.notes}
-              onChange={handleChange}
-              rows={2}
-              placeholder="Additional info..."
-              className={inputOk + " resize-none"}
-            />
-          </div>
-
-          {/* Calculated area preview */}
-          {areaPreview && (
-            <div className="p-3.5 rounded-lg bg-primary/5 border border-primary/10 text-sm theme-transition">
-              <span className="text-text-secondary">Total Area: </span>
-              <span className="font-bold text-primary tabular-nums">
-                {areaPreview} mm²
-              </span>
-            </div>
-          )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 px-6 py-4 bg-bg-elevated border-t border-border mt-6 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 h-11 text-text-secondary hover:text-text-primary font-medium transition-colors cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-text-muted/50 rounded-lg"
+              className="px-4 py-2 text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-surface border border-transparent hover:border-border rounded-lg transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-6 py-2.5 h-11 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-surface"
+              className="px-5 py-2 bg-primary hover:bg-primary-light text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
               ) : (
-                "Create Sheet"
+                "Save Master Sheet"
               )}
             </button>
           </div>

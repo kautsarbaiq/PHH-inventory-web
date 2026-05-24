@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import NewSheetModal from "../components/forms/NewSheetModal";
+import SheetCard from "../components/sheet/SheetCard";
 import useDebounce from "../hooks/useDebounce";
 
 const STATUS_CONFIG = {
@@ -52,7 +53,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const params = { page: pagination.page, limit: 12 };
+      const params = { page: pagination.page, limit: 24, isRootOnly: true };
       if (debouncedSearch) params.search = debouncedSearch;
       if (statusFilter) {
         params.status = statusFilter;
@@ -70,7 +71,7 @@ export default function DashboardPage() {
       }));
     } catch (err) {
       console.error("Failed to fetch sheets:", err);
-      setError("Gagal memuat data sheet. Pastikan server backend berjalan.");
+      setError("Failed to load sheet data. Make sure the backend server is running.");
     } finally {
       setLoading(false);
     }
@@ -242,8 +243,8 @@ export default function DashboardPage() {
       {/* ── Sheet Grid ── */}
       <div className="flex-1">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="h-44 skeleton" />
             ))}
           </div>
@@ -260,71 +261,10 @@ export default function DashboardPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sheets.map((sheet, idx) => {
-              const usedPct = getUsedPercent(sheet);
-              const statusCfg = STATUS_CONFIG[sheet.status] || STATUS_CONFIG.active;
-              const StatusIcon = statusCfg.icon;
-
-              return (
-                <div
-                  key={sheet.id}
-                  onClick={() => navigate(`/sheets/${sheet.id}`)}
-                  className="bg-bg-surface rounded-xl border border-border p-4 cursor-pointer hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 group animate-fade-in theme-transition"
-                  style={{ animationDelay: `${idx * 50}ms` }}
-                >
-                  {/* Sheet header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-text-primary text-base leading-tight">
-                        {sheet.sheetNumber}
-                      </h3>
-                      <p className="text-xs text-text-secondary mt-0.5">
-                        {sheet.grade} • {sheet.supplier}
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide ${statusCfg.bg} ${statusCfg.color}`}
-                    >
-                      <StatusIcon className="w-3 h-3 shrink-0" />
-                      {statusCfg.label}
-                    </span>
-                  </div>
-
-                  {/* Usage bar */}
-                  <div className="mb-3">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-text-muted font-medium">Usage</span>
-                      <span className="text-text-secondary font-semibold">
-                        {formatPercent(usedPct)}
-                      </span>
-                    </div>
-                    <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(usedPct, 100)}%`,
-                          background:
-                            usedPct > 80
-                              ? "var(--color-danger)"
-                              : usedPct > 50
-                                ? "var(--color-warning)"
-                                : "var(--color-primary)",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dimensions */}
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text-muted font-medium">
-                      {sheet.length} × {sheet.width} × {sheet.thickness} mm
-                    </span>
-                    <ArrowRight className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors" />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+            {sheets.map((sheet, idx) => (
+              <SheetCard key={sheet.id} sheet={sheet} />
+            ))}
           </div>
         )}
       </div>

@@ -50,3 +50,18 @@ export function formatArea(area) {
 export function formatPercent(value) {
   return `${value.toFixed(1)}%`;
 }
+
+/**
+ * Calculate weight (Berat) = density * length * width * thickness
+ */
+export function calculateWeight(sheet) {
+  if (!sheet || !sheet.density || !sheet.length || !sheet.width || !sheet.thickness) return 0;
+  return sheet.density * sheet.length * sheet.width * sheet.thickness;
+}
+
+/**
+ * Format weight for display
+ */
+export function formatWeight(weight) {
+  return `${weight.toLocaleString("en-US", { maximumFractionDigits: 2 })} kg`;
+}

@@ -48,20 +48,20 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
         const l = parseFloat(editForm.length);
         const w = parseFloat(editForm.width);
         if (isNaN(l) || l <= 0 || isNaN(w) || w <= 0) {
-          throw new Error("Dimensi Length dan Width harus bernilai positif");
+          throw new Error("Length and Width dimensions must be positive");
         }
         dims = { length: l, width: w };
       } else if (cut.cuttingType === "circle") {
         const r = parseFloat(editForm.radius);
         if (isNaN(r) || r <= 0) {
-          throw new Error("Dimensi Radius harus bernilai positif");
+          throw new Error("Radius dimension must be positive");
         }
         dims = { radius: r };
       } else if (cut.cuttingType === "triangle") {
         const b = parseFloat(editForm.base);
         const h = parseFloat(editForm.height);
         if (isNaN(b) || b <= 0 || isNaN(h) || h <= 0) {
-          throw new Error("Dimensi Base dan Height harus bernilai positif");
+          throw new Error("Base and Height dimensions must be positive");
         }
         dims = { base: b, height: h };
       }
@@ -76,7 +76,7 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
       onUpdateCutting(); // Trigger reload in parent!
     } catch (err) {
       console.error("Failed to update cutting:", err);
-      const msg = err.response?.data?.error || err.message || "Gagal mengupdate cutting";
+      const msg = err.response?.data?.error || err.message || "Failed to update cutting";
       setError(msg);
     } finally {
       setLoading(false);
@@ -84,17 +84,17 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
   };
 
   const handleMakeSon = async (cut) => {
-    if (!window.confirm(`Buat Son Sheet baru dari pemotongan ${cut.jobNumber}?`)) return;
+    if (!window.confirm(`Create a new Son Sheet from cutting ${cut.jobNumber}?`)) return;
     
     setError("");
     setLoading(true);
     try {
       await sheetApi.createSonFromCutting(sheet.id, cut.id);
       onUpdateCutting(); // Refresh parent to show the new son sheet in the tree
-      alert("Son Sheet berhasil dibuat!");
+      alert("Son Sheet successfully created!");
     } catch (err) {
       console.error("Failed to create son sheet:", err);
-      const msg = err.response?.data?.error || err.message || "Gagal membuat Son Sheet";
+      const msg = err.response?.data?.error || err.message || "Failed to create Son Sheet";
       setError(msg);
     } finally {
       setLoading(false);
@@ -112,10 +112,10 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
             </div>
             <div>
               <h2 className="text-lg font-bold text-text-primary leading-tight">
-                Riwayat & Kustomisasi Pemotongan
+                Cutting History & Customization
               </h2>
               <p className="text-xs text-text-muted mt-0.5">
-                Kustomisasi parameter dimensi, nama job, catatan, atau hapus potongan
+                Customize dimension parameters, job name, notes, or delete cuttings
               </p>
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
           {cuttings.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-text-muted">
               <Sliders className="w-12 h-12 mb-3 opacity-20" />
-              <p className="text-sm font-semibold">Belum ada pemotongan pada sheet ini</p>
+              <p className="text-sm font-semibold">No cuttings on this sheet yet</p>
             </div>
           ) : (
             <table className="w-full text-xs text-left border-collapse">
@@ -149,10 +149,10 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
                   <th className="py-2.5 px-3">#</th>
                   <th className="py-2.5 px-3">Job Number</th>
                   <th className="py-2.5 px-3">Type</th>
-                  <th className="py-2.5 px-3">Dimensi (mm)</th>
+                  <th className="py-2.5 px-3">Dimensions (mm)</th>
                   <th className="py-2.5 px-3 text-right">Area</th>
                   <th className="py-2.5 px-3">Notes</th>
-                  <th className="py-2.5 px-3 text-right w-24">Aksi</th>
+                  <th className="py-2.5 px-3 text-right w-24">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,7 +257,7 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
                             type="text"
                             value={editForm.notes}
                             onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
-                            placeholder="Catatan..."
+                            placeholder="Notes..."
                             className="w-full h-8 px-2 bg-bg-elevated border border-border rounded text-text-primary focus:outline-none focus:ring-1 focus:ring-primary text-xs"
                           />
                         ) : (
@@ -273,14 +273,14 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
                               onClick={() => handleSave(cut)}
                               disabled={loading}
                               className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded transition-colors cursor-pointer"
-                              title="Simpan Perubahan"
+                              title="Save Changes"
                             >
                               <Check className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={cancelEdit}
                               className="p-1.5 bg-bg-elevated text-text-secondary hover:text-text-primary rounded transition-colors cursor-pointer"
-                              title="Batal"
+                              title="Cancel"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -291,21 +291,21 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
                               onClick={() => handleMakeSon(cut)}
                               disabled={loading}
                               className="p-1.5 hover:bg-primary/10 text-text-muted hover:text-primary rounded transition-colors cursor-pointer"
-                              title="Buat Son Sheet"
+                              title="Create Son Sheet"
                             >
                               <GitBranch className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => startEdit(cut)}
                               className="p-1.5 hover:bg-bg-elevated text-text-muted hover:text-text-primary rounded transition-colors cursor-pointer"
-                              title="Edit/Kustomisasi Potongan"
+                              title="Edit Cutting"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => onDeleteCutting(cut.id)}
                               className="p-1.5 hover:bg-danger/10 text-text-muted hover:text-danger rounded transition-colors cursor-pointer"
-                              title="Hapus Potongan"
+                              title="Delete Cutting"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -326,7 +326,7 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
             onClick={onClose}
             className="px-5 py-2 h-10 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-colors cursor-pointer text-xs"
           >
-            Selesai
+            Done
           </button>
         </div>
       </div>
