@@ -62,6 +62,8 @@ export class SheetService {
       supplier?: string;
       kerfAllowance?: number;
       notes?: string;
+      shape?: string;
+      dimensions?: any;
     },
     userId: string
   ) {
@@ -86,10 +88,77 @@ export class SheetService {
         width: data.width,
         thickness: data.thickness,
         density: parent.density,
+        shape: data.shape || "rectangle",
+        dimensions: data.dimensions || null,
         totalArea,
         kerfAllowance: data.kerfAllowance ?? parent.kerfAllowance,
         notes: data.notes ?? `Son of ${parent.sheetNumber}`,
         parentId: parentId,
+        createdBy: userId,
+      })
+      .returning();
+
+    return sonSheet;
+  }
+
+  /**
+   * Create a Son Sheet directly from a cutting order (inherits shape and dimensions)
+   */
+  async createSonFromCutting(sheetId: string, cuttingId: string, userId: string) {
+    const parent = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, sheetId),
+    });
+    if (!parent) throw new Error("Parent sheet not found");
+
+    const cutting = await db.query.cuttingOrders.findFirst({
+      where: eq(cuttingOrders.id, cuttingId),
+    });
+    if (!cutting) throw new Error("Cutting order not found");
+    if (cutting.sheetId !== sheetId) throw new Error("Cutting order does not belong to this sheet");
+
+    // Calculate dimensions based on shape
+    let length = 0;
+    let width = 0;
+    const dims: any = cutting.dimensions || {};
+    
+    if (cutting.cuttingType === "rectangle") {
+      length = Number(dims.length) || 0;
+      width = Number(dims.width) || 0;
+    } else if (cutting.cuttingType === "circle") {
+      const r = Number(dims.radius) || 0;
+      length = r * 2;
+      width = r * 2;
+    } else if (cutting.cuttingType === "triangle") {
+      length = Number(dims.base) || 0;
+      width = Number(dims.height) || 0;
+    }
+
+    const totalArea = cutting.cutArea; // Inherit area from cutting order exactly
+
+    const sheetNumber = `${parent.sheetNumber}-S-${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+
+    // Check if sheetNumber already exists
+    const existing = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.sheetNumber, sheetNumber)
+    });
+    const finalSheetNumber = existing ? `${sheetNumber}-${Math.floor(Math.random() * 1000)}` : sheetNumber;
+
+    const [sonSheet] = await db
+      .insert(masterSheets)
+      .values({
+        sheetNumber: finalSheetNumber,
+        grade: parent.grade,
+        supplier: parent.supplier,
+        length,
+        width,
+        thickness: parent.thickness,
+        density: parent.density,
+        totalArea,
+        kerfAllowance: parent.kerfAllowance,
+        notes: `Son from cutting job ${cutting.jobNumber}`,
+        shape: cutting.cuttingType,
+        dimensions: cutting.dimensions,
+        parentId: parent.id,
         createdBy: userId,
       })
       .returning();
@@ -103,14 +172,14 @@ export class SheetService {
   async getGenealogy(sheetId: string): Promise<GenealogyNode | null> {
     // 1. Find the root (walk up to the top mother)
     let currentId = sheetId;
-    let rootSheet = await db.query.masterSheets.findFirst({
+    let rootSheet: any = await db.query.masterSheets.findFirst({
       where: eq(masterSheets.id, currentId),
     });
 
     if (!rootSheet) return null;
 
-    while (rootSheet.parentId) {
-      const parent = await db.query.masterSheets.findFirst({
+    while (rootSheet && rootSheet.parentId) {
+      const parent: any = await db.query.masterSheets.findFirst({
         where: eq(masterSheets.id, rootSheet.parentId),
       });
       if (!parent) break;

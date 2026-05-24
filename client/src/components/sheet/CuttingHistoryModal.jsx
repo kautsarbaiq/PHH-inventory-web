@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { X, Edit2, Check, Trash2, Sliders, AlertCircle } from "lucide-react";
-import { cuttingApi } from "../../lib/api";
+import { X, Edit2, Check, Trash2, Sliders, AlertCircle, GitBranch } from "lucide-react";
+import { cuttingApi, sheetApi } from "../../lib/api";
 import { formatArea } from "../../lib/calculations";
 
 export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDeleteCutting, onUpdateCutting }) {
@@ -77,6 +77,24 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
     } catch (err) {
       console.error("Failed to update cutting:", err);
       const msg = err.response?.data?.error || err.message || "Gagal mengupdate cutting";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMakeSon = async (cut) => {
+    if (!window.confirm(`Buat Son Sheet baru dari pemotongan ${cut.jobNumber}?`)) return;
+    
+    setError("");
+    setLoading(true);
+    try {
+      await sheetApi.createSonFromCutting(sheet.id, cut.id);
+      onUpdateCutting(); // Refresh parent to show the new son sheet in the tree
+      alert("Son Sheet berhasil dibuat!");
+    } catch (err) {
+      console.error("Failed to create son sheet:", err);
+      const msg = err.response?.data?.error || err.message || "Gagal membuat Son Sheet";
       setError(msg);
     } finally {
       setLoading(false);
@@ -269,6 +287,14 @@ export default function CuttingHistoryModal({ sheet, cuttings, onClose, onDelete
                           </div>
                         ) : (
                           <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => handleMakeSon(cut)}
+                              disabled={loading}
+                              className="p-1.5 hover:bg-primary/10 text-text-muted hover:text-primary rounded transition-colors cursor-pointer"
+                              title="Buat Son Sheet"
+                            >
+                              <GitBranch className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => startEdit(cut)}
                               className="p-1.5 hover:bg-bg-elevated text-text-muted hover:text-text-primary rounded transition-colors cursor-pointer"

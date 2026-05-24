@@ -373,16 +373,39 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
             height={canvasHeight * 10}
             fill={palette.bg}
           />
-          <Rect
-            x={offsetX}
-            y={offsetY}
-            width={sheetPixelW}
-            height={sheetPixelH}
-            fill={palette.sheet}
-            stroke={palette.sheetStroke}
-            strokeWidth={2}
-            cornerRadius={2}
-          />
+          {sheet.shape === "circle" ? (
+            <Circle
+              x={offsetX + sheetPixelW / 2}
+              y={offsetY + sheetPixelH / 2}
+              radius={sheetPixelW / 2}
+              fill={palette.sheet}
+              stroke={palette.sheetStroke}
+              strokeWidth={2}
+            />
+          ) : sheet.shape === "triangle" ? (
+            <Line
+              points={[
+                offsetX, offsetY + sheetPixelH,
+                offsetX + sheetPixelW / 2, offsetY,
+                offsetX + sheetPixelW, offsetY + sheetPixelH
+              ]}
+              closed
+              fill={palette.sheet}
+              stroke={palette.sheetStroke}
+              strokeWidth={2}
+            />
+          ) : (
+            <Rect
+              x={offsetX}
+              y={offsetY}
+              width={sheetPixelW}
+              height={sheetPixelH}
+              fill={palette.sheet}
+              stroke={palette.sheetStroke}
+              strokeWidth={2}
+              cornerRadius={2}
+            />
+          )}
           {gridLines}
           {axisTicks}
           <Text
