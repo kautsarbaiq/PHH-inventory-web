@@ -21,12 +21,13 @@ router.use(requireAuth);
  */
 router.get("/", async (req, res) => {
   try {
-    const { page, limit, search, status, thickness, minLength, minWidth } = req.query;
+    const { page, limit, search, status, excludeStatus, thickness, minLength, minWidth } = req.query;
     const result = await sheetService.listSheets({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       search: search as string | undefined,
       status: status as string | undefined,
+      excludeStatus: excludeStatus as string | undefined,
       thickness: thickness ? Number(thickness) : undefined,
       minLength: minLength ? Number(minLength) : undefined,
       minWidth: minWidth ? Number(minWidth) : undefined,
@@ -163,6 +164,18 @@ router.delete("/:id", requireRole("manager"), async (req: Request<IdParams>, res
   try {
     await sheetService.archiveSheet(req.params.id);
     res.json({ success: true, data: { message: "Sheet archived" } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /sheets/:id/permanent — Permanently delete sheet (manager only)
+ */
+router.delete("/:id/permanent", requireRole("manager"), async (req: Request<IdParams>, res) => {
+  try {
+    await sheetService.deleteSheetPermanently(req.params.id);
+    res.json({ success: true, data: { message: "Sheet permanently deleted" } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

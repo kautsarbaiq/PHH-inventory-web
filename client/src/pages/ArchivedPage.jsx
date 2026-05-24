@@ -1,46 +1,30 @@
-// ============================================================
-// PHH Inventory — Dashboard Page (Sheet Listing + Filters)
-// Debounced search & dimension filters
-// ============================================================
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { sheetApi } from "../lib/api";
 import { formatArea, formatPercent } from "../lib/calculations";
 import {
-  Plus,
   Search,
-  Layers,
-  ArrowRight,
-  Package,
-  AlertTriangle,
   Archive,
   RefreshCw,
   SlidersHorizontal,
   X,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
-import NewSheetModal from "../components/forms/NewSheetModal";
 import useDebounce from "../hooks/useDebounce";
 
-const STATUS_CONFIG = {
-  active: { label: "Active", color: "text-success", bg: "bg-success/10", icon: Package },
-  depleted: { label: "Depleted", color: "text-warning", bg: "bg-warning/10", icon: AlertTriangle },
-  archived: { label: "Archived", color: "text-scrap", bg: "bg-scrap/10", icon: Archive },
-};
-
-export default function DashboardPage() {
+export default function ArchivedPage() {
   const navigate = useNavigate();
   const [sheets, setSheets] = useState([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [thickness, setThickness] = useState("");
   const [minLength, setMinLength] = useState("");
   const [minWidth, setMinWidth] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showModal, setShowModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
+  const [deletingId, setDeletingId] = useState(null);
 
   // Debounce all filter values (500ms)
   const debouncedSearch = useDebounce(search, 500);
@@ -52,13 +36,8 @@ export default function DashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const params = { page: pagination.page, limit: 12 };
+      const params = { page: pagination.page, limit: 12, status: 'archived' };
       if (debouncedSearch) params.search = debouncedSearch;
-      if (statusFilter) {
-        params.status = statusFilter;
-      } else {
-        params.excludeStatus = 'archived';
-      }
       if (debouncedThickness) params.thickness = Number(debouncedThickness);
       if (debouncedMinLength) params.minLength = Number(debouncedMinLength);
       if (debouncedMinWidth) params.minWidth = Number(debouncedMinWidth);
@@ -69,26 +48,42 @@ export default function DashboardPage() {
         totalPages: data.pagination?.totalPages || 1,
       }));
     } catch (err) {
-      console.error("Failed to fetch sheets:", err);
+      console.error("Failed to fetch archived sheets:", err);
       setError("Gagal memuat data sheet. Pastikan server backend berjalan.");
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, debouncedSearch, statusFilter, debouncedThickness, debouncedMinLength, debouncedMinWidth]);
+  }, [pagination.page, debouncedSearch, debouncedThickness, debouncedMinLength, debouncedMinWidth]);
 
   useEffect(() => {
     fetchSheets();
   }, [fetchSheets]);
 
+  const handleDeletePermanent = async (e, id, sheetNumber) => {
+    e.stopPropagation(); // Prevent card click from navigating
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete sheet ${sheetNumber}? This action cannot be undone and will delete all associated cuttings.`)) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      await sheetApi.deletePermanent(id);
+      fetchSheets();
+    } catch (err) {
+      console.error("Failed to delete sheet:", err);
+      alert("Failed to delete sheet permanently.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const clearFilters = () => {
     setThickness("");
     setMinLength("");
     setMinWidth("");
-    setStatusFilter("");
     setSearch("");
   };
 
-  const hasActiveFilters = thickness || minLength || minWidth || statusFilter;
+  const hasActiveFilters = thickness || minLength || minWidth;
 
   const getUsedPercent = (sheet) => {
     if (!sheet.totalArea || sheet.totalArea === 0) return 0;
@@ -101,20 +96,12 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between shrink-0 mb-5">
         <div>
           <h1 className="text-xl font-bold text-text-primary tracking-tight">
-            Sheet Inventory
+            Archived Sheets
           </h1>
           <p className="text-text-secondary text-xs mt-0.5">
-            Manage master sheets and track material usage
+            View and permanently delete archived master sheets
           </p>
         </div>
-        <button
-          id="btn-new-sheet"
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 h-9 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          <Plus className="w-4 h-4 shrink-0" />
-          New Sheet
-        </button>
       </div>
 
       {/* ── Filters ── */}
@@ -132,18 +119,6 @@ export default function DashboardPage() {
               className="w-full h-9 pl-9 pr-3 bg-bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm theme-transition"
             />
           </div>
-
-          {/* Status */}
-          <select
-            id="filter-status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 h-9 bg-bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer text-sm theme-transition"
-          >
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="depleted">Depleted</option>
-          </select>
 
           {/* Toggle dimension filters */}
           <button
@@ -244,33 +219,27 @@ export default function DashboardPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-44 skeleton" />
+               <div key={i} className="h-44 skeleton" />
             ))}
           </div>
         ) : sheets.length === 0 && !error ? (
           <div className="flex flex-col items-center justify-center py-16 text-text-muted">
-            <Layers className="w-14 h-14 mb-3 opacity-20" />
+            <Archive className="w-14 h-14 mb-3 opacity-20" />
             <p className="text-base font-semibold text-text-secondary">
-              No sheets found
-            </p>
-            <p className="text-xs mt-1">
-              {hasActiveFilters
-                ? "Try adjusting your filters"
-                : "Create your first master sheet to get started"}
+              No archived sheets
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sheets.map((sheet, idx) => {
               const usedPct = getUsedPercent(sheet);
-              const statusCfg = STATUS_CONFIG[sheet.status] || STATUS_CONFIG.active;
-              const StatusIcon = statusCfg.icon;
+              const isDeleting = deletingId === sheet.id;
 
               return (
                 <div
                   key={sheet.id}
                   onClick={() => navigate(`/sheets/${sheet.id}`)}
-                  className="bg-bg-surface rounded-xl border border-border p-4 cursor-pointer hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 group animate-fade-in theme-transition"
+                  className={`bg-bg-surface rounded-xl border border-border p-4 cursor-pointer hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 group animate-fade-in theme-transition ${isDeleting ? "opacity-50 pointer-events-none" : ""}`}
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
                   {/* Sheet header */}
@@ -283,11 +252,9 @@ export default function DashboardPage() {
                         {sheet.grade} • {sheet.supplier}
                       </p>
                     </div>
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide ${statusCfg.bg} ${statusCfg.color}`}
-                    >
-                      <StatusIcon className="w-3 h-3 shrink-0" />
-                      {statusCfg.label}
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-scrap/10 text-scrap">
+                      <Archive className="w-3 h-3 shrink-0" />
+                      Archived
                     </span>
                   </div>
 
@@ -315,12 +282,20 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Dimensions */}
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text-muted font-medium">
+                  {/* Footer (Dimensions + Delete) */}
+                  <div className="flex items-center justify-between mt-4 border-t border-border pt-3">
+                    <span className="text-xs text-text-muted font-medium">
                       {sheet.length} × {sheet.width} × {sheet.thickness} mm
                     </span>
-                    <ArrowRight className="w-3.5 h-3.5 text-text-muted group-hover:text-primary transition-colors" />
+                    
+                    <button
+                      onClick={(e) => handleDeletePermanent(e, sheet.id, sheet.sheetNumber)}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold text-danger hover:bg-danger/10 transition-colors"
+                      title="Permanently Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete
+                    </button>
                   </div>
                 </div>
               );
@@ -328,17 +303,6 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-
-      {/* ── New Sheet Modal ── */}
-      {showModal && (
-        <NewSheetModal
-          onClose={() => setShowModal(false)}
-          onCreated={() => {
-            setShowModal(false);
-            fetchSheets();
-          }}
-        />
-      )}
     </div>
   );
 }

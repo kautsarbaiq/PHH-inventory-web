@@ -20,6 +20,7 @@ export const sheetApi = {
   create: (data) => api.post("/sheets", data),
   update: (id, data) => api.patch(`/sheets/${id}`, data),
   archive: (id) => api.delete(`/sheets/${id}`),
+  deletePermanent: (id) => api.delete(`/sheets/${id}/permanent`),
   // Mother-Son
   createSon: (parentId, data) => api.post(`/sheets/${parentId}/son`, data),
   getGenealogy: (id) => api.get(`/sheets/${id}/genealogy`),

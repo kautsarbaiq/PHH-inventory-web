@@ -2,7 +2,7 @@
 // PHH Inventory — Sheet Service
 // ============================================================
 
-import { eq, desc, sql, and, ilike, gte } from "drizzle-orm";
+import { eq, ne, desc, sql, and, ilike, gte } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { masterSheets } from "../db/schema/sheets.js";
 import { cuttingOrders } from "../db/schema/cuttings.js";
@@ -192,6 +192,7 @@ export class SheetService {
     limit?: number;
     search?: string;
     status?: string;
+    excludeStatus?: string;
     thickness?: number;
     minLength?: number;
     minWidth?: number;
@@ -203,6 +204,9 @@ export class SheetService {
     const conditions = [];
     if (params.status) {
       conditions.push(eq(masterSheets.status, params.status));
+    }
+    if (params.excludeStatus) {
+      conditions.push(ne(masterSheets.status, params.excludeStatus));
     }
     if (params.search) {
       conditions.push(ilike(masterSheets.sheetNumber, `%${params.search}%`));
@@ -297,6 +301,15 @@ export class SheetService {
         updatedAt: new Date(),
       })
       .where(eq(masterSheets.id, sheetId));
+  }
+
+  /**
+   * Permanently delete a sheet and all its related cuttings.
+   */
+  async deleteSheetPermanently(id: string) {
+    // explicitly delete cuttings first just to be safe if no CASCADE
+    await db.delete(cuttingOrders).where(eq(cuttingOrders.sheetId, id));
+    await db.delete(masterSheets).where(eq(masterSheets.id, id));
   }
 }
 
