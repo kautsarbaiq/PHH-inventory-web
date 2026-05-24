@@ -20,6 +20,7 @@ export class SheetService {
       length: number;
       width: number;
       thickness: number;
+      density: number;
       kerfAllowance?: number;
       notes?: string;
     },
@@ -36,6 +37,7 @@ export class SheetService {
         length: data.length,
         width: data.width,
         thickness: data.thickness,
+        density: data.density,
         totalArea,
         kerfAllowance: data.kerfAllowance ?? 2,
         notes: data.notes ?? null,
@@ -83,6 +85,7 @@ export class SheetService {
         length: data.length,
         width: data.width,
         thickness: data.thickness,
+        density: parent.density,
         totalArea,
         kerfAllowance: data.kerfAllowance ?? parent.kerfAllowance,
         notes: data.notes ?? `Son of ${parent.sheetNumber}`,

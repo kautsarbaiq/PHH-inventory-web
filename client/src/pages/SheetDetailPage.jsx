@@ -16,12 +16,15 @@ import {
   AlertTriangle,
   RefreshCw,
   GitBranch,
+  Trash2,
+  Sliders,
 } from "lucide-react";
 import MasterSheetCanvas from "../components/canvas/MasterSheetCanvas";
 import CuttingOrderForm from "../components/forms/CuttingOrderForm";
 import UsageDonutChart from "../components/dashboard/UsageDonutChart";
 import GenealogyTree from "../components/sheet/GenealogyTree";
 import SonSheetModal from "../components/forms/SonSheetModal";
+import CuttingHistoryModal from "../components/sheet/CuttingHistoryModal";
 
 export default function SheetDetailPage() {
   const { id } = useParams();
@@ -33,6 +36,29 @@ export default function SheetDetailPage() {
   const [newCuttingPreview, setNewCuttingPreview] = useState(null);
   const [genealogy, setGenealogy] = useState(null);
   const [showSonModal, setShowSonModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  const handleArchiveSheet = async () => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus sheet ini? Semua anak sheet (son sheets) dan cutting orders di dalamnya juga akan terpengaruh.")) return;
+    try {
+      await sheetApi.archive(id);
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Failed to delete sheet:", err);
+      alert(err.response?.data?.error || "Gagal menghapus sheet");
+    }
+  };
+
+  const handleRemoveCutting = async (cuttingId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus cutting order ini? Area sheet akan dikalkulasi ulang.")) return;
+    try {
+      await cuttingApi.remove(id, cuttingId);
+      fetchData();
+    } catch (err) {
+      console.error("Failed to remove cutting:", err);
+      alert(err.response?.data?.error || "Gagal menghapus cutting order");
+    }
+  };
 
   const handlePreviewChange = useCallback((formData) => {
     if (!formData) {
@@ -163,10 +189,19 @@ export default function SheetDetailPage() {
           <GitBranch className="w-3.5 h-3.5" />
           Save as Son
         </button>
+
+        {/* Delete Sheet Button */}
+        <button
+          onClick={handleArchiveSheet}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer shrink-0"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Hapus Sheet
+        </button>
       </div>
 
-      {/* ═══ Row 2: Main workspace (fills remaining height) ═══ */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      {/* ═══ Row 2: Main workspace (scrollable vertically on small viewports) ═══ */}
+      <div className="flex-1 overflow-y-auto flex flex-col">
         {/* Top section: Canvas + Stats side-by-side */}
         <div className="shrink-0 grid grid-cols-1 lg:grid-cols-4 gap-3 p-3">
           {/* Canvas (3/4) */}
@@ -229,62 +264,9 @@ export default function SheetDetailPage() {
             sheet={sheet}
             onCreated={handleCuttingCreated}
             onPreviewChange={handlePreviewChange}
+            onViewHistory={() => setShowHistoryModal(true)}
+            cuttingsCount={cuttings.length}
           />
-        </div>
-
-        {/* Cutting History (SCROLLABLE — only this section scrolls) */}
-        <div className="flex-1 min-h-0 flex flex-col bg-bg-surface theme-transition">
-          <div className="shrink-0 px-4 pt-2.5 pb-1.5">
-            <h2 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3 h-3" /> Cutting History ({cuttings.length})
-            </h2>
-          </div>
-          {cuttings.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-text-muted py-6">
-              <Scissors className="w-8 h-8 mb-2 opacity-20" />
-              <p className="text-xs font-medium">No cuttings yet</p>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto px-4 pb-3">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-bg-elevated/80 backdrop-blur-sm border-b border-border theme-transition">
-                    <th className="text-left py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">#</th>
-                    <th className="text-left py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">Job #</th>
-                    <th className="text-left py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">Type</th>
-                    <th className="text-left py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">Dimensions</th>
-                    <th className="text-right py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">Area</th>
-                    <th className="text-right py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">Effective</th>
-                    <th className="text-left py-2 px-3 font-semibold text-text-secondary uppercase tracking-wider">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cuttings.map((cut, idx) => (
-                    <tr
-                      key={cut.id}
-                      className="border-b border-border/30 hover:bg-bg-elevated/30 transition-colors theme-transition"
-                    >
-                      <td className="py-2 px-3 text-text-muted font-medium">{idx + 1}</td>
-                      <td className="py-2 px-3 font-semibold text-text-primary">{cut.jobNumber}</td>
-                      <td className="py-2 px-3"><TypeBadge type={cut.cuttingType} /></td>
-                      <td className="py-2 px-3 text-text-secondary font-medium">
-                        <DimensionLabel type={cut.cuttingType} dims={cut.dimensions} />
-                      </td>
-                      <td className="py-2 px-3 text-right text-text-secondary tabular-nums">{formatArea(cut.cutArea)}</td>
-                      <td className="py-2 px-3 text-right text-text-muted tabular-nums">{formatArea(cut.effectiveArea)}</td>
-                      <td className="py-2 px-3 text-text-muted tabular-nums">
-                        {new Date(cut.createdAt).toLocaleDateString("id-ID", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
 
@@ -297,6 +279,17 @@ export default function SheetDetailPage() {
             setShowSonModal(false);
             fetchData();
           }}
+        />
+      )}
+
+      {/* Cutting History Modal */}
+      {showHistoryModal && (
+        <CuttingHistoryModal
+          sheet={sheet}
+          cuttings={cuttings}
+          onClose={() => setShowHistoryModal(false)}
+          onDeleteCutting={handleRemoveCutting}
+          onUpdateCutting={fetchData}
         />
       )}
     </div>

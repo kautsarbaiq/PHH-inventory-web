@@ -7,7 +7,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { cuttingApi } from "../../lib/api";
 import { calculateCutArea, formatArea } from "../../lib/calculations";
-import { AlertCircle, Plus, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Plus, CheckCircle2, Clock } from "lucide-react";
 
 const CUTTING_TYPES = [
   { value: "rectangle", label: "▭ Rectangle" },
@@ -15,7 +15,7 @@ const CUTTING_TYPES = [
   { value: "triangle", label: "△ Triangle" },
 ];
 
-export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewChange }) {
+export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewChange, onViewHistory, cuttingsCount }) {
   const [form, setForm] = useState({
     jobNumber: "",
     cuttingType: "rectangle",
@@ -193,7 +193,7 @@ export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewC
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4 items-end">
         {/* Job # */}
         <div>
           <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
@@ -379,34 +379,41 @@ export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewC
             <p className="text-xs text-danger-light mt-1">{fieldErrors.positionY}</p>
           )}
         </div>
-      </div>
 
-      {/* Footer: preview + submit */}
-      <div className="flex items-center justify-between pt-1">
-        {previewArea > 0 ? (
-          <p className="text-sm text-text-secondary">
-            Cut Area:{" "}
-            <span className="font-semibold text-primary">
-              {formatArea(previewArea)}
-            </span>
-          </p>
-        ) : (
-          <div />
-        )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex items-center gap-3 px-6 py-3 h-11 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-base"
-        >
-          {loading ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
-          ) : (
-            <>
-              <Plus className="w-5 h-5 shrink-0" />
-              Add Cutting
-            </>
+        {/* Buttons: Riwayat + Add Cutting */}
+        <div className="lg:col-span-2 md:col-span-3 sm:col-span-2 flex flex-col gap-1 w-full self-end">
+          {previewArea > 0 && (
+            <p className="text-[10px] text-text-secondary font-medium tracking-wide text-right mb-0.5 pr-1">
+              Cut Area: <span className="font-semibold text-primary">{formatArea(previewArea)}</span>
+            </p>
           )}
-        </button>
+          <div className="flex gap-2 w-full">
+            {onViewHistory && (
+              <button
+                type="button"
+                onClick={onViewHistory}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 h-11 bg-bg-elevated hover:bg-bg-hover text-text-secondary hover:text-text-primary font-semibold rounded-lg border border-border transition-colors cursor-pointer text-xs focus:outline-none focus:ring-2 focus:ring-border/50"
+              >
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>Riwayat ({cuttingsCount || 0})</span>
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 flex items-center justify-center gap-1.5 px-4 h-11 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-bg-base"
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 shrink-0" />
+                  <span>Add Cutting</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </form>
   );

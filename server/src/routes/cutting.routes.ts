@@ -94,6 +94,25 @@ router.patch("/:id/position", async (req: Request<CuttingParams>, res) => {
 });
 
 /**
+ * PATCH /sheets/:sheetId/cuttings/:id — Update cutting details (jobNumber, dimensions, notes)
+ */
+router.patch("/:id", async (req: Request<CuttingParams>, res) => {
+  try {
+    const cutting = await cuttingService.updateCutting(
+      req.params.id,
+      req.params.sheetId,
+      req.body
+    );
+    res.json({ success: true, data: cutting });
+  } catch (error: any) {
+    if (error.message.includes("Placement invalid") || error.message.includes("Invalid position")) {
+      return res.status(422).json({ success: false, error: error.message });
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * DELETE /sheets/:sheetId/cuttings/:id — Remove cutting (manager only)
  */
 router.delete("/:id", requireRole("manager"), async (req: Request<CuttingParams>, res) => {

@@ -193,6 +193,104 @@ export class CuttingService {
   }
 
   /**
+   * Update cutting order details (jobNumber, dimensions, notes, etc.) with collision validation.
+   */
+  async updateCutting(
+    id: string,
+    sheetId: string,
+    data: {
+      jobNumber?: string;
+      dimensions?: CuttingDimensions;
+      notes?: string;
+    }
+  ) {
+    // 1. Get the target cutting
+    const [targetCutting] = await db
+      .select()
+      .from(cuttingOrders)
+      .where(and(eq(cuttingOrders.id, id), eq(cuttingOrders.sheetId, sheetId)));
+
+    if (!targetCutting) {
+      throw new Error("Cutting not found");
+    }
+
+    // 2. Get the sheet
+    const sheet = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, sheetId),
+    });
+
+    if (!sheet) throw new Error("Sheet not found");
+
+    // Prepare updated fields
+    const updatedJobNumber = data.jobNumber ?? targetCutting.jobNumber;
+    const updatedNotes = data.notes !== undefined ? data.notes : targetCutting.notes;
+    const updatedDimensions = data.dimensions ?? (targetCutting.dimensions as CuttingDimensions);
+
+    let cutArea = targetCutting.cutArea;
+    let effectiveArea = targetCutting.effectiveArea;
+
+    // 3. If dimensions are changed, validate placement and recalculate area
+    if (data.dimensions) {
+      // Get other cuttings for collision checks
+      const otherCuttings = await db
+        .select()
+        .from(cuttingOrders)
+        .where(eq(cuttingOrders.sheetId, sheetId));
+      const filtered = otherCuttings.filter((c) => c.id !== id);
+
+      const validation = validatePlacement(
+        sheet.length,
+        sheet.width,
+        sheet.kerfAllowance,
+        filtered.map((c) => ({
+          cuttingType: c.cuttingType,
+          dimensions: c.dimensions as CuttingDimensions,
+          positionX: c.positionX,
+          positionY: c.positionY,
+          rotation: c.rotation,
+        })),
+        {
+          cuttingType: targetCutting.cuttingType,
+          dimensions: updatedDimensions,
+          positionX: targetCutting.positionX,
+          positionY: targetCutting.positionY,
+          rotation: targetCutting.rotation,
+        }
+      );
+
+      if (!validation.valid) {
+        throw new Error(`Placement invalid: ${validation.errors.join("; ")}`);
+      }
+
+      // Recalculate areas
+      cutArea = calculateCutArea(targetCutting.cuttingType, updatedDimensions);
+      effectiveArea = calculateEffectiveArea(
+        targetCutting.cuttingType,
+        updatedDimensions,
+        sheet.kerfAllowance
+      );
+    }
+
+    // 4. Update database
+    const [updated] = await db
+      .update(cuttingOrders)
+      .set({
+        jobNumber: updatedJobNumber,
+        notes: updatedNotes,
+        dimensions: updatedDimensions,
+        cutArea,
+        effectiveArea,
+      })
+      .where(eq(cuttingOrders.id, id))
+      .returning();
+
+    // 5. Recalculate sheet's used area
+    await sheetService.recalculateUsedArea(sheetId);
+
+    return updated;
+  }
+
+  /**
    * Delete a cutting order and recalculate sheet usage.
    */
   async deleteCutting(id: string, sheetId: string) {

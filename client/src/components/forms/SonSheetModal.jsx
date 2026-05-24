@@ -95,8 +95,23 @@ export default function SonSheetModal({ parentSheet, onClose, onCreated }) {
             />
           </div>
 
-          {/* Dimensions Grid */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Dimensions Grid (Thickness first, then Length, then Width) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                Thickness (mm)
+              </label>
+              <input
+                name="thickness"
+                type="number"
+                value={form.thickness}
+                onChange={handleChange}
+                required
+                min="0.1"
+                step="any"
+                className={inputClass}
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
                 Length (mm)
@@ -125,21 +140,6 @@ export default function SonSheetModal({ parentSheet, onClose, onCreated }) {
                 placeholder={String(parentSheet.width)}
                 required
                 min="5"
-                step="any"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Thickness
-              </label>
-              <input
-                name="thickness"
-                type="number"
-                value={form.thickness}
-                onChange={handleChange}
-                required
-                min="0.1"
                 step="any"
                 className={inputClass}
               />

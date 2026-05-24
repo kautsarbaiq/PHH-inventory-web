@@ -28,6 +28,7 @@ export const createSheetSchema = z.object({
     .positive("Width must be positive")
     .min(MIN_CUT_DIMENSION, `Min width is ${MIN_CUT_DIMENSION}mm`),
   thickness: z.number().positive("Thickness must be positive"),
+  density: z.number().positive("Density must be positive"),
   kerfAllowance: z
     .number()
     .nonnegative("Kerf cannot be negative")

@@ -32,6 +32,8 @@ export const cuttingApi = {
   create: (sheetId, data) => api.post(`/sheets/${sheetId}/cuttings`, data),
   updatePosition: (sheetId, cuttingId, data) =>
     api.patch(`/sheets/${sheetId}/cuttings/${cuttingId}/position`, data),
+  update: (sheetId, cuttingId, data) =>
+    api.patch(`/sheets/${sheetId}/cuttings/${cuttingId}`, data),
   remove: (sheetId, cuttingId) =>
     api.delete(`/sheets/${sheetId}/cuttings/${cuttingId}`),
 };

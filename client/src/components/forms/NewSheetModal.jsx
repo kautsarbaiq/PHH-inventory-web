@@ -15,6 +15,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
     length: "",
     width: "",
     thickness: "",
+    density: "",
     kerfAllowance: "2",
     notes: "",
   });
@@ -43,11 +44,13 @@ export default function NewSheetModal({ onClose, onCreated }) {
     const l = parseFloat(form.length);
     const w = parseFloat(form.width);
     const t = parseFloat(form.thickness);
+    const d = parseFloat(form.density);
     const k = parseFloat(form.kerfAllowance);
     
     if (isNaN(l) || l < 5) errors.length = "Min 5 mm";
     if (isNaN(w) || w < 5) errors.width = "Min 5 mm";
     if (isNaN(t) || t < 0.1) errors.thickness = "Min 0.1 mm";
+    if (isNaN(d) || d <= 0) errors.density = "Density must be positive";
     if (isNaN(k) || k < 0) errors.kerfAllowance = "Min 0 mm";
 
     setFieldErrors(errors);
@@ -69,6 +72,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
         length: parseFloat(form.length),
         width: parseFloat(form.width),
         thickness: parseFloat(form.thickness),
+        density: parseFloat(form.density),
         kerfAllowance: parseFloat(form.kerfAllowance),
         notes: form.notes || undefined,
       });
@@ -188,8 +192,27 @@ export default function NewSheetModal({ onClose, onCreated }) {
             )}
           </div>
 
-          {/* Dimensions */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Dimensions (Thickness first, then Length, then Width) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                Thickness (mm)
+              </label>
+              <input
+                name="thickness"
+                type="number"
+                value={form.thickness}
+                onChange={handleChange}
+                placeholder="10"
+                required
+                min="0.1"
+                step="any"
+                className={getInputClass("thickness")}
+              />
+              {fieldErrors.thickness && (
+                <p className="text-xs text-danger-light mt-1">{fieldErrors.thickness}</p>
+              )}
+            </div>
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
                 Length (mm)
@@ -228,25 +251,27 @@ export default function NewSheetModal({ onClose, onCreated }) {
                 <p className="text-xs text-danger-light mt-1">{fieldErrors.width}</p>
               )}
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                Thickness (mm)
-              </label>
-              <input
-                name="thickness"
-                type="number"
-                value={form.thickness}
-                onChange={handleChange}
-                placeholder="10"
-                required
-                min="0.1"
-                step="any"
-                className={getInputClass("thickness")}
-              />
-              {fieldErrors.thickness && (
-                <p className="text-xs text-danger-light mt-1">{fieldErrors.thickness}</p>
-              )}
-            </div>
+          </div>
+
+          {/* Density */}
+          <div>
+            <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+              Density (g/cm³)
+            </label>
+            <input
+              name="density"
+              type="number"
+              value={form.density}
+              onChange={handleChange}
+              placeholder="0.00000785"
+              required
+              min="0"
+              step="any"
+              className={getInputClass("density")}
+            />
+            {fieldErrors.density && (
+              <p className="text-xs text-danger-light mt-1">{fieldErrors.density}</p>
+            )}
           </div>
 
           {/* Kerf */}

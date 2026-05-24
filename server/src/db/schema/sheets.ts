@@ -2,7 +2,7 @@
 // PHH Inventory — Master Sheets Schema (with Kerf, Scrap & Parent)
 // ============================================================
 
-import { pgTable, text, timestamp, real, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, real, uuid, doublePrecision } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { user } from "./auth.js";
 import { cuttingOrders } from "./cuttings.js";
@@ -15,6 +15,7 @@ export const masterSheets = pgTable("master_sheets", {
   length: real("length").notNull(),
   width: real("width").notNull(),
   thickness: real("thickness").notNull(),
+  density: doublePrecision("density").notNull().default(0),
   totalArea: real("total_area").notNull(),
   usedArea: real("used_area").notNull().default(0),
   scrapArea: real("scrap_area").notNull().default(0),
