@@ -4,7 +4,7 @@
 
 import "dotenv/config";
 import dns from "dns";
-dns.setDefaultResultOrder("ipv4first"); // Force IPv4 first to resolve ENETUNREACH on Render/IPv6
+dns.setDefaultResultOrder("ipv4first");
 import express from "express";
 import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
@@ -12,17 +12,21 @@ import { auth } from "./lib/auth.js";
 import { apiRoutes } from "./routes/index.js";
 
 const app = express();
-app.set("trust proxy", true); // Trust Render load balancer proxy for secure cookies (HTTPS)
+app.set("trust proxy", true);
 const PORT = process.env.PORT || 3001;
 
-// ---- Global Middlewares ----
+// ---- Parse CORS origins from env ----
+const parseCorsOrigins = (): string[] => {
+  const env = process.env.CORS_ORIGIN || process.env.CLIENT_URL;
+  const defaults = ["http://localhost:5173"];
+  if (!env) return defaults;
+  const origins = env.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
+  return [...new Set([...origins, ...defaults])];
+};
+
 app.use(
   cors({
-    origin: [
-      "https://phh-inventory-web-client.vercel.app",
-      "http://localhost:5173",
-      ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL.replace(/\/$/, "")] : [])
-    ],
+    origin: parseCorsOrigins(),
     credentials: true,
   })
 );

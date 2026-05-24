@@ -31,6 +31,7 @@ export interface MasterSheet {
   kerfAllowance: number;
   status: SheetStatus;
   notes: string | null;
+  parentId: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +42,28 @@ export interface SheetWithStats extends MasterSheet {
   usedPercentage: number;
   availablePercentage: number;
   cuttingCount: number;
+}
+
+export interface GenealogyNode {
+  id: string;
+  sheetNumber: string;
+  length: number;
+  width: number;
+  thickness: number;
+  status: SheetStatus;
+  parentId: string | null;
+  children: GenealogyNode[];
+}
+
+export interface CreateSonSheetInput {
+  sheetNumber: string;
+  length: number;
+  width: number;
+  thickness: number;
+  grade?: string;
+  supplier?: string;
+  kerfAllowance?: number;
+  notes?: string;
 }
 
 export interface CreateSheetInput {

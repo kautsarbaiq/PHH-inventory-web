@@ -8,6 +8,7 @@ export * from "./types/index.js";
 export {
   createSheetSchema,
   updateSheetSchema,
+  createSonSheetSchema,
   createCuttingSchema,
   updatePositionSchema,
 } from "./validators/index.js";
@@ -15,6 +16,7 @@ export {
 export type {
   CreateSheetInput as CreateSheetPayload,
   UpdateSheetInput as UpdateSheetPayload,
+  CreateSonSheetInput as CreateSonSheetPayload,
   CreateCuttingInput as CreateCuttingPayload,
   UpdatePositionInput as UpdatePositionPayload,
 } from "./validators/index.js";

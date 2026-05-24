@@ -43,6 +43,29 @@ export const updateSheetSchema = z.object({
   scrapArea: z.number().nonnegative("Scrap area cannot be negative").optional(),
 });
 
+export const createSonSheetSchema = z.object({
+  sheetNumber: z
+    .string()
+    .min(1, "Sheet number is required")
+    .max(50, "Sheet number too long"),
+  length: z
+    .number()
+    .positive("Length must be positive")
+    .min(MIN_CUT_DIMENSION, `Min length is ${MIN_CUT_DIMENSION}mm`),
+  width: z
+    .number()
+    .positive("Width must be positive")
+    .min(MIN_CUT_DIMENSION, `Min width is ${MIN_CUT_DIMENSION}mm`),
+  thickness: z.number().positive("Thickness must be positive"),
+  grade: z.string().min(1).optional(),
+  supplier: z.string().min(1).optional(),
+  kerfAllowance: z
+    .number()
+    .nonnegative("Kerf cannot be negative")
+    .optional(),
+  notes: z.string().optional(),
+});
+
 // ---- Cutting Dimension Validators ----
 
 const rectangleDimensionsSchema = z.object({
@@ -104,5 +127,6 @@ export const updatePositionSchema = z.object({
 
 export type CreateSheetInput = z.infer<typeof createSheetSchema>;
 export type UpdateSheetInput = z.infer<typeof updateSheetSchema>;
+export type CreateSonSheetInput = z.infer<typeof createSonSheetSchema>;
 export type CreateCuttingInput = z.infer<typeof createCuttingSchema>;
 export type UpdatePositionInput = z.infer<typeof updatePositionSchema>;

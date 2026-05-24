@@ -1,5 +1,5 @@
 // ============================================================
-// PHH Inventory — Master Sheets Schema (with Kerf & Scrap)
+// PHH Inventory — Master Sheets Schema (with Kerf, Scrap & Parent)
 // ============================================================
 
 import { pgTable, text, timestamp, real, uuid } from "drizzle-orm/pg-core";
@@ -21,6 +21,8 @@ export const masterSheets = pgTable("master_sheets", {
   kerfAllowance: real("kerf_allowance").notNull().default(2),
   status: text("status").notNull().default("active"),
   notes: text("notes"),
+  // Mother-Son tracking
+  parentId: uuid("parent_id"),
   createdBy: text("created_by")
     .notNull()
     .references(() => user.id),
@@ -34,4 +36,10 @@ export const masterSheetsRelations = relations(masterSheets, ({ many, one }) => 
     fields: [masterSheets.createdBy],
     references: [user.id],
   }),
+  parent: one(masterSheets, {
+    fields: [masterSheets.parentId],
+    references: [masterSheets.id],
+    relationName: "parentChild",
+  }),
+  children: many(masterSheets, { relationName: "parentChild" }),
 }));

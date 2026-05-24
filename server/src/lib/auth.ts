@@ -7,6 +7,15 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js";
 import * as schema from "../db/schema/auth.js";
 
+// ---- Parse trusted origins from env ----
+const parseTrustedOrigins = (): string[] => {
+  const env = process.env.CORS_ORIGIN || process.env.CLIENT_URL;
+  const defaults = ["http://localhost:5173"];
+  if (!env) return defaults;
+  const origins = env.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
+  return [...new Set([...origins, ...defaults])];
+};
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -21,11 +30,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  trustedOrigins: [
-    "https://phh-inventory-web-client.vercel.app",
-    "http://localhost:5173",
-    ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL.replace(/\/$/, "")] : [])
-  ],
+  trustedOrigins: parseTrustedOrigins(),
   user: {
     additionalFields: {
       role: {

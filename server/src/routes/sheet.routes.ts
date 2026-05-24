@@ -8,7 +8,7 @@ type IdParams = { id: string };
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import { sheetService } from "../services/sheet.service.js";
-import { createSheetSchema, updateSheetSchema } from "@phh/shared";
+import { createSheetSchema, updateSheetSchema, createSonSheetSchema } from "@phh/shared";
 
 const router = Router();
 
@@ -17,15 +17,19 @@ router.use(requireAuth);
 
 /**
  * GET /sheets — List all sheets (any role)
+ * Query params: page, limit, search, status, thickness, minLength, minWidth
  */
 router.get("/", async (req, res) => {
   try {
-    const { page, limit, search, status } = req.query;
+    const { page, limit, search, status, thickness, minLength, minWidth } = req.query;
     const result = await sheetService.listSheets({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       search: search as string | undefined,
       status: status as string | undefined,
+      thickness: thickness ? Number(thickness) : undefined,
+      minLength: minLength ? Number(minLength) : undefined,
+      minWidth: minWidth ? Number(minWidth) : undefined,
     });
 
     res.json({ success: true, ...result });
@@ -44,6 +48,21 @@ router.get("/:id", async (req: Request<IdParams>, res) => {
       return res.status(404).json({ success: false, error: "Sheet not found" });
     }
     res.json({ success: true, data: sheet });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /sheets/:id/genealogy — Get sheet genealogy tree
+ */
+router.get("/:id/genealogy", async (req: Request<IdParams>, res) => {
+  try {
+    const tree = await sheetService.getGenealogy(req.params.id);
+    if (!tree) {
+      return res.status(404).json({ success: false, error: "Sheet not found" });
+    }
+    res.json({ success: true, data: tree });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -74,6 +93,40 @@ router.post("/", requireRole("manager"), async (req: Request, res) => {
         success: false,
         error: "Sheet number already exists",
       });
+    }
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /sheets/:id/son — Create son sheet from remaining material (manager only)
+ */
+router.post("/:id/son", requireRole("manager"), async (req: Request<IdParams>, res) => {
+  try {
+    const parsed = createSonSheetSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const sonSheet = await sheetService.createSonSheet(
+      req.params.id,
+      parsed.data,
+      (req as any).user.id
+    );
+    res.status(201).json({ success: true, data: sonSheet });
+  } catch (error: any) {
+    if (error.message?.includes("unique")) {
+      return res.status(409).json({
+        success: false,
+        error: "Sheet number already exists",
+      });
+    }
+    if (error.message?.includes("not found")) {
+      return res.status(404).json({ success: false, error: error.message });
     }
     res.status(500).json({ success: false, error: error.message });
   }

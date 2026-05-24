@@ -1,6 +1,6 @@
 // ============================================================
 // PHH Inventory — App Layout (Sidebar + Content)
-// Refactored: consistent spacing, theme toggle, improved hierarchy
+// h-screen locked layout — no page-level scroll
 // ============================================================
 
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
@@ -28,32 +28,32 @@ export default function AppLayout() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-bg-base theme-transition">
+    <div className="h-screen flex bg-bg-base theme-transition overflow-hidden">
       {/* ── Sidebar ── */}
-      <aside className="w-64 bg-bg-surface border-r border-border flex flex-col shrink-0 theme-transition relative z-40">
+      <aside className="w-56 bg-bg-surface border-r border-border flex flex-col shrink-0 theme-transition relative z-40">
         {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Factory className="w-5 h-5 text-primary" />
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Factory className="w-4.5 h-4.5 text-primary" />
           </div>
           <div>
             <h1 className="font-bold text-text-primary text-sm leading-tight">
               PHH Inventory
             </h1>
-            <p className="text-xs text-text-muted leading-tight">
+            <p className="text-[10px] text-text-muted leading-tight">
               Cutting Manager
             </p>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 ${isActive
+                `group flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 ${isActive
                   ? "bg-primary/10 text-primary"
                   : "text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
                 }`
@@ -68,34 +68,31 @@ export default function AppLayout() {
 
         {/* Bottom: Theme Toggle + User */}
         <div className="border-t border-border">
-          {/* Theme toggle row */}
-          <div className="flex items-center justify-between px-5 py-3">
-            <span className="text-xs text-text-muted font-medium uppercase tracking-wider">
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <span className="text-[10px] text-text-muted font-medium uppercase tracking-wider">
               Theme
             </span>
             <ThemeToggle />
           </div>
-
-          {/* User info */}
-          <div className="px-3 pb-4">
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-bg-elevated/50">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-primary" />
+          <div className="px-2 pb-3">
+            <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-bg-elevated/50">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <User className="w-3.5 h-3.5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text-primary truncate leading-tight">
+                <p className="text-xs font-medium text-text-primary truncate leading-tight">
                   {session?.user?.name || "User"}
                 </p>
-                <p className="text-xs text-text-muted truncate leading-tight">
+                <p className="text-[10px] text-text-muted truncate leading-tight">
                   {session?.user?.role || "operator"}
                 </p>
               </div>
               <button
                 onClick={handleSignOut}
-                className="p-1.5 rounded-lg hover:bg-bg-hover text-text-muted hover:text-danger transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-danger/50"
+                className="p-1 rounded-lg hover:bg-bg-hover text-text-muted hover:text-danger transition-colors cursor-pointer focus:outline-none"
                 title="Sign out"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -103,10 +100,8 @@ export default function AppLayout() {
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto relative z-0 bg-bg-base">
-        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 py-6 md:py-8">
-          <Outlet />
-        </div>
+      <main className="flex-1 min-w-0 overflow-y-auto relative z-0 bg-bg-base">
+        <Outlet />
       </main>
     </div>
   );

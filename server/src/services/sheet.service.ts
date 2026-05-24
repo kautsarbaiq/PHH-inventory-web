@@ -2,11 +2,11 @@
 // PHH Inventory — Sheet Service
 // ============================================================
 
-import { eq, desc, sql, and, ilike } from "drizzle-orm";
+import { eq, desc, sql, and, ilike, gte } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { masterSheets } from "../db/schema/sheets.js";
 import { cuttingOrders } from "../db/schema/cuttings.js";
-import type { SheetWithStats, SheetStatus } from "@phh/shared";
+import type { SheetWithStats, SheetStatus, GenealogyNode } from "@phh/shared";
 
 export class SheetService {
   /**
@@ -47,6 +47,110 @@ export class SheetService {
   }
 
   /**
+   * Create a Son Sheet from remaining material of a parent sheet.
+   */
+  async createSonSheet(
+    parentId: string,
+    data: {
+      sheetNumber: string;
+      length: number;
+      width: number;
+      thickness: number;
+      grade?: string;
+      supplier?: string;
+      kerfAllowance?: number;
+      notes?: string;
+    },
+    userId: string
+  ) {
+    // Get parent sheet
+    const parent = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, parentId),
+    });
+
+    if (!parent) {
+      throw new Error("Parent sheet not found");
+    }
+
+    const totalArea = data.length * data.width;
+
+    const [sonSheet] = await db
+      .insert(masterSheets)
+      .values({
+        sheetNumber: data.sheetNumber,
+        grade: data.grade || parent.grade,
+        supplier: data.supplier || parent.supplier,
+        length: data.length,
+        width: data.width,
+        thickness: data.thickness,
+        totalArea,
+        kerfAllowance: data.kerfAllowance ?? parent.kerfAllowance,
+        notes: data.notes ?? `Son of ${parent.sheetNumber}`,
+        parentId: parentId,
+        createdBy: userId,
+      })
+      .returning();
+
+    return sonSheet;
+  }
+
+  /**
+   * Get genealogy tree for a sheet (finds root, then builds tree downward).
+   */
+  async getGenealogy(sheetId: string): Promise<GenealogyNode | null> {
+    // 1. Find the root (walk up to the top mother)
+    let currentId = sheetId;
+    let rootSheet = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, currentId),
+    });
+
+    if (!rootSheet) return null;
+
+    while (rootSheet.parentId) {
+      const parent = await db.query.masterSheets.findFirst({
+        where: eq(masterSheets.id, rootSheet.parentId),
+      });
+      if (!parent) break;
+      rootSheet = parent;
+    }
+
+    // 2. Build tree recursively from root
+    return this.buildGenealogyNode(rootSheet.id);
+  }
+
+  private async buildGenealogyNode(sheetId: string): Promise<GenealogyNode | null> {
+    const sheet = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, sheetId),
+    });
+
+    if (!sheet) return null;
+
+    // Find children
+    const children = await db
+      .select()
+      .from(masterSheets)
+      .where(eq(masterSheets.parentId, sheetId))
+      .orderBy(masterSheets.createdAt);
+
+    const childNodes: GenealogyNode[] = [];
+    for (const child of children) {
+      const node = await this.buildGenealogyNode(child.id);
+      if (node) childNodes.push(node);
+    }
+
+    return {
+      id: sheet.id,
+      sheetNumber: sheet.sheetNumber,
+      length: sheet.length,
+      width: sheet.width,
+      thickness: sheet.thickness,
+      status: sheet.status as SheetStatus,
+      parentId: sheet.parentId,
+      children: childNodes,
+    };
+  }
+
+  /**
    * Get a sheet by ID with computed stats and cutting count.
    */
   async getSheetById(id: string): Promise<SheetWithStats | null> {
@@ -69,6 +173,7 @@ export class SheetService {
     return {
       ...sheet,
       status: sheet.status as SheetStatus,
+      parentId: sheet.parentId,
       availableArea: Math.max(0, availableArea),
       usedPercentage: Math.round(usedPercentage * 100) / 100,
       availablePercentage: Math.round((100 - usedPercentage) * 100) / 100,
@@ -77,13 +182,16 @@ export class SheetService {
   }
 
   /**
-   * List sheets with optional search and pagination.
+   * List sheets with optional search, filter, and pagination.
    */
   async listSheets(params: {
     page?: number;
     limit?: number;
     search?: string;
     status?: string;
+    thickness?: number;
+    minLength?: number;
+    minWidth?: number;
   }) {
     const page = params.page ?? 1;
     const limit = params.limit ?? 20;
@@ -95,6 +203,15 @@ export class SheetService {
     }
     if (params.search) {
       conditions.push(ilike(masterSheets.sheetNumber, `%${params.search}%`));
+    }
+    if (params.thickness !== undefined && params.thickness > 0) {
+      conditions.push(eq(masterSheets.thickness, params.thickness));
+    }
+    if (params.minLength !== undefined && params.minLength > 0) {
+      conditions.push(gte(masterSheets.length, params.minLength));
+    }
+    if (params.minWidth !== undefined && params.minWidth > 0) {
+      conditions.push(gte(masterSheets.width, params.minWidth));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -161,7 +278,6 @@ export class SheetService {
 
   /**
    * Recalculate the usedArea from all cutting orders.
-   * Called after creating or deleting a cutting.
    */
   async recalculateUsedArea(sheetId: string) {
     const [result] = await db
