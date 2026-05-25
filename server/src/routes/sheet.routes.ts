@@ -138,12 +138,13 @@ router.post("/:id/son", requireRole("manager"), async (req: Request<IdParams>, r
 /**
  * POST /sheets/:id/cuttings/:cuttingId/make-son — Create son sheet from cutting job
  */
-router.post("/:id/cuttings/:cuttingId/make-son", requireRole("manager"), async (req: Request<{id: string, cuttingId: string}>, res) => {
+router.post("/:id/cuttings/:cuttingId/make-son", requireRole("manager"), async (req: Request<{id: string, cuttingId: string}, {}, { customName?: string }>, res) => {
   try {
     const sonSheet = await sheetService.createSonFromCutting(
       req.params.id,
       req.params.cuttingId,
-      (req as any).user.id
+      (req as any).user.id,
+      req.body.customName
     );
     res.status(201).json({ success: true, data: sonSheet });
   } catch (error: any) {

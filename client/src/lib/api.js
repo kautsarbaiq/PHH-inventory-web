@@ -23,7 +23,7 @@ export const sheetApi = {
   deletePermanent: (id) => api.delete(`/sheets/${id}/permanent`),
   // Mother-Son
   createSon: (parentId, data) => api.post(`/sheets/${parentId}/son`, data),
-  createSonFromCutting: (sheetId, cuttingId) => api.post(`/sheets/${sheetId}/cuttings/${cuttingId}/make-son`),
+  createSonFromCutting: (sheetId, cuttingId, customName) => api.post(`/sheets/${sheetId}/cuttings/${cuttingId}/make-son`, { customName }),
   getGenealogy: (id) => api.get(`/sheets/${id}/genealogy`),
 };
 
