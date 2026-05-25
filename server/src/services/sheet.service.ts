@@ -207,13 +207,54 @@ export class SheetService {
     return {
       id: sheet.id,
       sheetNumber: sheet.sheetNumber,
+      grade: sheet.grade,
+      supplier: sheet.supplier,
+      density: sheet.density,
       length: sheet.length,
       width: sheet.width,
       thickness: sheet.thickness,
+      totalArea: sheet.totalArea,
+      usedArea: sheet.usedArea,
+      scrapArea: sheet.scrapArea,
       status: sheet.status as SheetStatus,
       parentId: sheet.parentId,
       children: childNodes,
     };
+  }
+
+  /**
+   * Get genealogy trees for multiple sheets (batch).
+   * Deduplicates by finding unique roots, so if both a parent and child are in the list,
+   * only one tree is returned.
+   */
+  async getGenealogyBatch(sheetIds: string[]): Promise<GenealogyNode[]> {
+    const rootIds = new Set<string>();
+    const trees: GenealogyNode[] = [];
+
+    for (const sheetId of sheetIds) {
+      // Walk up to find root
+      let current: any = await db.query.masterSheets.findFirst({
+        where: eq(masterSheets.id, sheetId),
+      });
+      if (!current) continue;
+
+      while (current && current.parentId) {
+        const parent: any = await db.query.masterSheets.findFirst({
+          where: eq(masterSheets.id, current.parentId),
+        });
+        if (!parent) break;
+        current = parent;
+      }
+
+      // Deduplicate by root ID
+      if (!rootIds.has(current.id)) {
+        rootIds.add(current.id);
+        const tree = await this.buildGenealogyNode(current.id);
+        if (tree) trees.push(tree);
+      }
+    }
+
+    return trees;
   }
 
   /**

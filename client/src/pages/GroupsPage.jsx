@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { groupApi, sheetApi } from "../lib/api";
 import SheetCard from "../components/sheet/SheetCard";
 import {
@@ -23,9 +24,11 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  GitBranch,
 } from "lucide-react";
 
 export default function GroupsPage() {
+  const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -364,6 +367,13 @@ export default function GroupsPage() {
                   >
                     <Edit2 className="w-3 h-3" />
                     Manage Items
+                  </button>
+                  <button
+                    onClick={() => navigate(`/groups/${activeGroup.id}/canvas`)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <GitBranch className="w-3 h-3" />
+                    Canvas View
                   </button>
                   <button
                     onClick={(e) => handleDeleteGroup(e, activeGroup.id)}

@@ -47,9 +47,15 @@ export interface SheetWithStats extends MasterSheet {
 export interface GenealogyNode {
   id: string;
   sheetNumber: string;
+  grade: string;
+  supplier: string;
+  density: number;
   length: number;
   width: number;
   thickness: number;
+  totalArea: number;
+  usedArea: number;
+  scrapArea: number;
   status: SheetStatus;
   parentId: string | null;
   children: GenealogyNode[];

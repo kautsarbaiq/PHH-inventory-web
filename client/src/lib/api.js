@@ -25,6 +25,7 @@ export const sheetApi = {
   createSon: (parentId, data) => api.post(`/sheets/${parentId}/son`, data),
   createSonFromCutting: (sheetId, cuttingId, customName) => api.post(`/sheets/${sheetId}/cuttings/${cuttingId}/make-son`, { customName }),
   getGenealogy: (id) => api.get(`/sheets/${id}/genealogy`),
+  getGenealogyBatch: (sheetIds) => api.post('/sheets/genealogy-batch', { sheetIds }),
 };
 
 // ---- Cutting API ----

@@ -13,6 +13,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ArchivedPage from "./pages/ArchivedPage";
 import SheetDetailPage from "./pages/SheetDetailPage";
 import GroupsPage from "./pages/GroupsPage";
+import GroupCanvasPage from "./pages/GroupCanvasPage";
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -90,6 +91,7 @@ export default function App() {
           >
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/groups" element={<GroupsPage />} />
+            <Route path="/groups/:groupId/canvas" element={<GroupCanvasPage />} />
             <Route path="/archived" element={<ArchivedPage />} />
             <Route path="/sheets/:id" element={<SheetDetailPage />} />
           </Route>

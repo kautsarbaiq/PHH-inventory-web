@@ -42,6 +42,22 @@ router.get("/", async (req, res) => {
 });
 
 /**
+ * POST /sheets/genealogy-batch — Get genealogy trees for multiple sheets
+ */
+router.post("/genealogy-batch", async (req: Request, res) => {
+  try {
+    const { sheetIds } = req.body;
+    if (!Array.isArray(sheetIds) || sheetIds.length === 0) {
+      return res.status(400).json({ success: false, error: "sheetIds must be a non-empty array" });
+    }
+    const trees = await sheetService.getGenealogyBatch(sheetIds);
+    res.json({ success: true, data: trees });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /sheets/:id — Get sheet detail (any role)
  */
 router.get("/:id", async (req: Request<IdParams>, res) => {
