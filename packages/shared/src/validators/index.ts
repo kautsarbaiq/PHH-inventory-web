@@ -44,6 +44,11 @@ export const updateSheetSchema = z.object({
   scrapArea: z.number().nonnegative("Scrap area cannot be negative").optional(),
   usedArea: z.number().nonnegative("Used area cannot be negative").optional(),
   isManualUsage: z.boolean().optional(),
+  length: z.number().positive().min(MIN_CUT_DIMENSION).optional(),
+  width: z.number().positive().min(MIN_CUT_DIMENSION).optional(),
+  thickness: z.number().positive().optional(),
+  density: z.number().positive().optional(),
+  kerfAllowance: z.number().nonnegative().optional(),
 });
 
 export const createSonSheetSchema = z.object({

@@ -135,13 +135,8 @@ export class SheetService {
 
     const totalArea = cutting.cutArea; // Inherit area from cutting order exactly
 
-    const sheetNumber = `${parent.sheetNumber}-S-${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
-
-    // Check if sheetNumber already exists
-    const existing = await db.query.masterSheets.findFirst({
-      where: eq(masterSheets.sheetNumber, sheetNumber)
-    });
-    const finalSheetNumber = existing ? `${sheetNumber}-${Math.floor(Math.random() * 1000)}` : sheetNumber;
+    const uniqueId = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const finalSheetNumber = `${parent.sheetNumber}-SON-${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-${uniqueId}`;
 
     const [sonSheet] = await db
       .insert(masterSheets)
@@ -452,12 +447,30 @@ export class SheetService {
       scrapArea?: number;
       usedArea?: number;
       isManualUsage?: boolean;
+      length?: number;
+      width?: number;
+      thickness?: number;
+      density?: number;
+      kerfAllowance?: number;
     }
   ) {
+    const updateData: any = { ...data };
+
+    if (data.length !== undefined || data.width !== undefined) {
+      const currentSheet = await db.query.masterSheets.findFirst({
+        where: eq(masterSheets.id, id),
+      });
+      if (currentSheet) {
+        const newLength = data.length ?? currentSheet.length;
+        const newWidth = data.width ?? currentSheet.width;
+        updateData.totalArea = newLength * newWidth;
+      }
+    }
+
     const [updated] = await db
       .update(masterSheets)
       .set({
-        ...data,
+        ...updateData,
         updatedAt: new Date(),
       })
       .where(eq(masterSheets.id, id))

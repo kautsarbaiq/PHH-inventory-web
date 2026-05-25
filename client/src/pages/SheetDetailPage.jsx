@@ -24,6 +24,7 @@ import {
   Edit2,
   Check,
   X,
+  Settings2,
 } from "lucide-react";
 import MasterSheetCanvas from "../components/canvas/MasterSheetCanvas";
 import CuttingOrderForm from "../components/forms/CuttingOrderForm";
@@ -31,6 +32,7 @@ import UsageDonutChart from "../components/dashboard/UsageDonutChart";
 import GenealogyTree from "../components/sheet/GenealogyTree";
 import CuttingHistoryModal from "../components/sheet/CuttingHistoryModal";
 import SelectCuttingModal from "../components/forms/SelectCuttingModal";
+import EditSheetModal from "../components/forms/EditSheetModal";
 
 export default function SheetDetailPage() {
   const { id } = useParams();
@@ -43,6 +45,7 @@ export default function SheetDetailPage() {
   const [genealogy, setGenealogy] = useState(null);
   const [showSonModal, setShowSonModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showEditSheetModal, setShowEditSheetModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [isEditingUsage, setIsEditingUsage] = useState(false);
   const [newUsagePct, setNewUsagePct] = useState("");
@@ -253,6 +256,16 @@ export default function SheetDetailPage() {
             </span>
           </p>
         </div>
+        
+        {/* Edit Sheet Button */}
+        <button
+          onClick={() => setShowEditSheetModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-secondary bg-bg-elevated hover:bg-bg-elevated/80 rounded-lg transition-colors cursor-pointer shrink-0 border border-border"
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          Edit Sheet
+        </button>
+
         {/* Son Sheet Button */}
         <button
           onClick={() => setShowSonModal(true)}
@@ -539,6 +552,18 @@ export default function SheetDetailPage() {
           onClose={() => setShowHistoryModal(false)}
           onDeleteCutting={handleRemoveCutting}
           onUpdateCutting={fetchData}
+        />
+      )}
+
+      {/* Edit Sheet Modal */}
+      {showEditSheetModal && (
+        <EditSheetModal
+          sheet={sheet}
+          onClose={() => setShowEditSheetModal(false)}
+          onUpdated={() => {
+            setShowEditSheetModal(false);
+            fetchData();
+          }}
         />
       )}
     </div>
