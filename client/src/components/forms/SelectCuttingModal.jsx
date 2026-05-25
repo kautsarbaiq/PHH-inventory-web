@@ -2,15 +2,20 @@ import { useState } from "react";
 import { X, Scissors, ArrowRight, CheckCircle2 } from "lucide-react";
 import { sheetApi } from "../../lib/api";
 
-export default function SelectCuttingModal({ sheetId, cuttings, onClose, onCreated }) {
+export default function SelectCuttingModal({ sheetId, sheetNumber, cuttings, onClose, onCreated }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleMakeSon = async (cuttingId) => {
+  const handleMakeSon = async (cuttingId, jobNumber) => {
+    const defaultName = `${sheetNumber}-SON-${jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+    const customName = window.prompt("Enter a custom name for this Son Sheet (a 4-character unique ID will be appended):", defaultName);
+    
+    if (customName === null) return;
+
     setLoading(true);
     setError("");
     try {
-      const res = await sheetApi.createSonFromCutting(sheetId, cuttingId);
+      const res = await sheetApi.createSonFromCutting(sheetId, cuttingId, customName);
       onCreated();
       alert(`Son Sheet successfully created!\nNew ID: ${res.data.data.sheetNumber}`);
     } catch (err) {
@@ -85,7 +90,7 @@ export default function SelectCuttingModal({ sheetId, cuttings, onClose, onCreat
                       </p>
                     </div>
                     <button
-                      onClick={() => handleMakeSon(cut.id)}
+                      onClick={() => handleMakeSon(cut.id, cut.jobNumber)}
                       disabled={loading}
                       className="px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                     >

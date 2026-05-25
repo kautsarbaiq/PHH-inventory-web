@@ -85,9 +85,13 @@ export default function SheetDetailPage() {
   };
 
   const handleMakeSonFromCutting = async (cutting) => {
-    if (!window.confirm(`Are you sure you want to create a new Son Sheet from cutting job ${cutting.jobNumber}?`)) return;
+    const defaultName = `${sheet.sheetNumber}-SON-${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+    const customName = window.prompt("Enter a custom name for this Son Sheet (a 4-character unique ID will be appended):", defaultName);
+    
+    if (customName === null) return;
+    
     try {
-      const res = await sheetApi.createSonFromCutting(id, cutting.id);
+      const res = await sheetApi.createSonFromCutting(id, cutting.id, customName);
       fetchData();
       alert(`Son Sheet successfully created!\nNew ID: ${res.data.data.sheetNumber}`);
     } catch (err) {
@@ -534,7 +538,8 @@ export default function SheetDetailPage() {
       {/* Son Sheet Modal */}
       {showSonModal && (
         <SelectCuttingModal
-          sheetId={id}
+          sheetId={sheet.id}
+          sheetNumber={sheet.sheetNumber}
           cuttings={cuttings}
           onClose={() => setShowSonModal(false)}
           onCreated={() => {
