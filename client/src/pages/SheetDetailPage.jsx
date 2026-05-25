@@ -86,7 +86,7 @@ export default function SheetDetailPage() {
 
   const handleMakeSonFromCutting = async (cutting) => {
     const defaultName = `${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
-    const customName = window.prompt("Enter a custom name for this Son Sheet (a 4-character unique ID will be appended):", defaultName);
+    const customName = window.prompt("Enter a custom name for this Son Sheet:", defaultName);
     
     if (customName === null) return;
     
@@ -239,11 +239,11 @@ export default function SheetDetailPage() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-bold text-text-primary leading-tight truncate">
-            {sheet.parentId ? sheet.sheetNumber.split('-').slice(0, -1).join('-') : sheet.sheetNumber}
+            {sheet.sheetNumber}
           </h1>
           {sheet.parentId && (
             <p className="text-[11px] text-primary font-mono mt-0.5">
-              ID Unik: {sheet.sheetNumber.split('-').pop()}
+              ID Unik: {sheet.id.split('-')[0]}
             </p>
           )}
           <p className="text-text-secondary text-xs truncate mt-1">

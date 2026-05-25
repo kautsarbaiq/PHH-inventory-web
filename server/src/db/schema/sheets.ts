@@ -9,7 +9,7 @@ import { cuttingOrders } from "./cuttings";
 
 export const masterSheets = pgTable("master_sheets", {
   id: uuid("id").primaryKey().defaultRandom(),
-  sheetNumber: text("sheet_number").notNull().unique(),
+  sheetNumber: text("sheet_number").notNull(),
   grade: text("grade").notNull(),
   supplier: text("supplier").notNull(),
   length: real("length").notNull(),
