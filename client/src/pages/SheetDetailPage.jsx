@@ -85,7 +85,7 @@ export default function SheetDetailPage() {
   };
 
   const handleMakeSonFromCutting = async (cutting) => {
-    const defaultName = `${sheet.sheetNumber}-SON-${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+    const defaultName = `${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
     const customName = window.prompt("Enter a custom name for this Son Sheet (a 4-character unique ID will be appended):", defaultName);
     
     if (customName === null) return;
@@ -239,9 +239,14 @@ export default function SheetDetailPage() {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-bold text-text-primary leading-tight truncate">
-            {sheet.sheetNumber}
+            {sheet.parentId ? sheet.sheetNumber.split('-').slice(0, -1).join('-') : sheet.sheetNumber}
           </h1>
-          <p className="text-text-secondary text-xs truncate">
+          {sheet.parentId && (
+            <p className="text-[11px] text-primary font-mono mt-0.5">
+              ID Unik: {sheet.sheetNumber.split('-').pop()}
+            </p>
+          )}
+          <p className="text-text-secondary text-xs truncate mt-1">
             {sheet.grade} • {sheet.supplier} •{" "}
             <span className="font-medium">
               {sheet.length}×{sheet.width}×{sheet.thickness} mm
@@ -254,10 +259,6 @@ export default function SheetDetailPage() {
                 </span>
               </>
             )}
-            {" "}•{" "}
-            <span className="font-semibold text-primary">
-              {formatWeight(calculateWeight(sheet))}
-            </span>
           </p>
         </div>
         

@@ -136,7 +136,7 @@ export class SheetService {
     const totalArea = cutting.cutArea; // Inherit area from cutting order exactly
 
     const uniqueId = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const baseName = customName ? customName.trim() : `${parent.sheetNumber}-SON-${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+    const baseName = customName ? customName.trim() : `${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
     const finalSheetNumber = `${baseName}-${uniqueId}`;
 
     const [sonSheet] = await db

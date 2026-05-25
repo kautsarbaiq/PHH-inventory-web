@@ -7,7 +7,7 @@ export default function SelectCuttingModal({ sheetId, sheetNumber, cuttings, onC
   const [error, setError] = useState("");
 
   const handleMakeSon = async (cuttingId, jobNumber) => {
-    const defaultName = `${sheetNumber}-SON-${jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+    const defaultName = `${jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
     const customName = window.prompt("Enter a custom name for this Son Sheet (a 4-character unique ID will be appended):", defaultName);
     
     if (customName === null) return;
