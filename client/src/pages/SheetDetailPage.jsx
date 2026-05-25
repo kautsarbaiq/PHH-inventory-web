@@ -87,9 +87,9 @@ export default function SheetDetailPage() {
   const handleMakeSonFromCutting = async (cutting) => {
     if (!window.confirm(`Are you sure you want to create a new Son Sheet from cutting job ${cutting.jobNumber}?`)) return;
     try {
-      await sheetApi.createSonFromCutting(id, cutting.id);
+      const res = await sheetApi.createSonFromCutting(id, cutting.id);
       fetchData();
-      alert("Son Sheet successfully created!");
+      alert(`Son Sheet successfully created!\nNew ID: ${res.data.data.sheetNumber}`);
     } catch (err) {
       console.error("Failed to create son sheet:", err);
       alert(err.response?.data?.error || "Failed to create Son Sheet");

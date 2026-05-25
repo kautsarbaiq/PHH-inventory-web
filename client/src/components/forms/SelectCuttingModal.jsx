@@ -10,8 +10,9 @@ export default function SelectCuttingModal({ sheetId, cuttings, onClose, onCreat
     setLoading(true);
     setError("");
     try {
-      await sheetApi.createSonFromCutting(sheetId, cuttingId);
+      const res = await sheetApi.createSonFromCutting(sheetId, cuttingId);
       onCreated();
+      alert(`Son Sheet successfully created!\nNew ID: ${res.data.data.sheetNumber}`);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to create Son Sheet");
       setLoading(false);

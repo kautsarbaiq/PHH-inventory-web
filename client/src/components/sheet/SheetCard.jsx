@@ -131,9 +131,14 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
 
       {/* Details Row */}
       <div className="flex items-center justify-between text-xs mb-3 text-text-muted">
-        <span className="font-medium">
-          {sheet.length} × {sheet.width} × {sheet.thickness}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium">
+            {sheet.length} × {sheet.width} × {sheet.thickness}
+          </span>
+          <span className="text-[9px] font-mono bg-bg-elevated/50 px-1 py-0.5 rounded border border-border" title="Database UUID">
+            ID: {sheet.id.split('-')[0]}
+          </span>
+        </div>
         <span className="font-semibold text-text-primary bg-bg-elevated px-1.5 py-0.5 rounded">
           {formatWeight(weight)}
         </span>

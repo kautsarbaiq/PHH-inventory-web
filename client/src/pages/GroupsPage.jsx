@@ -489,10 +489,14 @@ export default function GroupsPage() {
                             ) : (
                               <Square className="w-4 h-4 text-text-muted shrink-0" />
                             )}
-                            <div className="flex-1 min-w-0 flex justify-between items-center pr-2">
-                              <span className="font-semibold text-text-primary truncate">
-                                {sheet.sheetNumber}
-                              </span>
+                              <div className="flex flex-col flex-1 min-w-0 pr-2">
+                                <span className="font-semibold text-text-primary truncate">
+                                  {sheet.sheetNumber}
+                                </span>
+                                <span className="text-[9px] text-text-muted font-mono">
+                                  ID: {sheet.id.split('-')[0]}
+                                </span>
+                              </div>
                               <span className="text-[10px] text-text-muted">
                                 {sheet.length}x{sheet.width}x{sheet.thickness} mm
                               </span>
@@ -616,10 +620,14 @@ export default function GroupsPage() {
                             ) : (
                               <Square className="w-4 h-4 text-text-muted shrink-0" />
                             )}
-                            <div className="flex-1 min-w-0 flex justify-between items-center pr-2">
-                              <span className="font-semibold text-text-primary truncate">
-                                {sheet.sheetNumber}
-                              </span>
+                              <div className="flex flex-col flex-1 min-w-0 pr-2">
+                                <span className="font-semibold text-text-primary truncate">
+                                  {sheet.sheetNumber}
+                                </span>
+                                <span className="text-[9px] text-text-muted font-mono">
+                                  ID: {sheet.id.split('-')[0]}
+                                </span>
+                              </div>
                               <span className="text-[10px] text-text-muted">
                                 {sheet.length}x{sheet.width}x{sheet.thickness} mm
                               </span>
