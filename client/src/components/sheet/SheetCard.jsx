@@ -139,9 +139,6 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
             ID: {sheet.id.split('-')[0]}
           </span>
         </div>
-        <span className="font-semibold text-text-primary bg-bg-elevated px-1.5 py-0.5 rounded">
-          {formatWeight(weight)}
-        </span>
       </div>
 
       {/* Usage bar */}
