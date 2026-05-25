@@ -457,9 +457,14 @@ export default function SheetDetailPage() {
               />
               <div className="space-y-1.5 mt-3 pt-3 border-t border-border/50 text-xs">
                 <StatRow label="Density" value={sheet.density > 0 ? `${(sheet.density * 1000000).toFixed(3)} g/cm³` : "—"} />
-                <StatRow label="Total" value={formatArea(sheet.totalArea)} />
+                <StatRow 
+                  label="Total" 
+                  value={formatArea(sheet.totalArea)} 
+                  subValue={formatWeight(totalWeight)}
+                  subColor="text-text-primary"
+                />
                 
-                <div className="flex justify-between items-center group">
+                <div className="flex justify-between items-start group">
                   <span className="text-text-muted font-medium flex items-center gap-1">
                     Used
                     <button onClick={startEditingUsage} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-bg-elevated rounded text-text-muted hover:text-primary transition-all" title="Edit Usage">
@@ -485,21 +490,32 @@ export default function SheetDetailPage() {
                       </button>
                     </div>
                   ) : (
-                    <span className="font-semibold text-danger tabular-nums">
-                      {formatArea(sheet.usedArea || 0)}
-                      {sheet.isManualUsage && <span className="ml-1 text-[9px] text-warning" title="Manual Usage Override">(M)</span>}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="font-semibold text-danger tabular-nums">
+                        {formatArea(sheet.usedArea || 0)}
+                        {sheet.isManualUsage && <span className="ml-1 text-[9px] text-warning" title="Manual Usage Override">(M)</span>}
+                      </span>
+                      <span className="text-[10px] font-medium text-danger tabular-nums mt-0.5">
+                        {formatWeight(usedWeight)}
+                      </span>
+                    </div>
                   )}
                 </div>
 
-                <StatRow label="Available" value={formatArea(sheet.availableArea || 0)} color="text-primary" />
-                <StatRow label="Scrap" value={formatArea(sheet.scrapArea || 0)} color="text-scrap" />
-                <div className="border-t border-border/50 pt-1.5 space-y-1.5">
-                  <StatRow label="Total Weight" value={formatWeight(totalWeight)} />
-                  <StatRow label="Used Weight" value={formatWeight(usedWeight)} color="text-danger" />
-                  <StatRow label="Available Weight" value={formatWeight(availWeight)} color="text-primary" />
-                  <StatRow label="Scrap Weight" value={formatWeight(scrapWeight)} color="text-scrap" />
-                </div>
+                <StatRow 
+                  label="Available" 
+                  value={formatArea(sheet.availableArea || 0)} 
+                  subValue={formatWeight(availWeight)}
+                  color="text-primary" 
+                  subColor="text-primary"
+                />
+                <StatRow 
+                  label="Scrap" 
+                  value={formatArea(sheet.scrapArea || 0)} 
+                  subValue={formatWeight(scrapWeight)}
+                  color="text-scrap" 
+                  subColor="text-scrap"
+                />
                 <div className="border-t border-border/50 pt-1.5 space-y-1.5">
                   <StatRow label="Cuts" value={sheet.cuttingCount || 0} />
                   <StatRow label="Kerf" value={`${sheet.kerfAllowance} mm`} />
@@ -578,11 +594,14 @@ export default function SheetDetailPage() {
 
 // ── Inline helper components ──
 
-function StatRow({ label, value, color = "text-text-primary" }) {
+function StatRow({ label, value, subValue, color = "text-text-primary", subColor = "text-text-muted" }) {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex justify-between items-start">
       <span className="text-text-muted font-medium">{label}</span>
-      <span className={`font-semibold ${color} tabular-nums`}>{value}</span>
+      <div className="flex flex-col items-end">
+        <span className={`font-semibold ${color} tabular-nums`}>{value}</span>
+        {subValue && <span className={`text-[10px] font-medium ${subColor} tabular-nums mt-0.5`}>{subValue}</span>}
+      </div>
     </div>
   );
 }
