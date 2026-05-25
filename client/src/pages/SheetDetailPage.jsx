@@ -3,7 +3,7 @@
 // No page scroll — only Cutting History table scrolls
 // ============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { sheetApi, cuttingApi } from "../lib/api";
 import { formatArea, formatPercent, calculateWeight, formatWeight } from "../lib/calculations";
@@ -18,6 +18,9 @@ import {
   GitBranch,
   Trash2,
   Sliders,
+  Archive,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import MasterSheetCanvas from "../components/canvas/MasterSheetCanvas";
 import CuttingOrderForm from "../components/forms/CuttingOrderForm";
@@ -37,26 +40,51 @@ export default function SheetDetailPage() {
   const [genealogy, setGenealogy] = useState(null);
   const [showSonModal, setShowSonModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const historyRef = useRef(null);
 
   const handleArchiveSheet = async () => {
-    if (!window.confirm("Are you sure you want to delete this sheet? All its son sheets and cutting orders will also be affected.")) return;
+    if (!window.confirm("Are you sure you want to archive this sheet? It will be moved to the archives and can be restored later.")) return;
     try {
       await sheetApi.archive(id);
       navigate("/dashboard");
     } catch (err) {
-      console.error("Failed to delete sheet:", err);
-      alert(err.response?.data?.error || "Gagal menghapus sheet");
+      console.error("Failed to archive sheet:", err);
+      alert(err.response?.data?.error || "Failed to archive sheet");
+    }
+  };
+
+  const handleDeleteSheetPermanent = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this sheet? This action CANNOT be undone and all associated cuttings will be permanently deleted!")) return;
+    try {
+      await sheetApi.deletePermanent(id);
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Failed to delete sheet permanently:", err);
+      alert(err.response?.data?.error || "Failed to permanently delete sheet");
     }
   };
 
   const handleRemoveCutting = async (cuttingId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus cutting order ini? Area sheet akan dikalkulasi ulang.")) return;
+    if (!window.confirm("Are you sure you want to delete this cutting job? The sheet area will be recalculated.")) return;
     try {
       await cuttingApi.remove(id, cuttingId);
       fetchData();
     } catch (err) {
       console.error("Failed to remove cutting:", err);
-      alert(err.response?.data?.error || "Gagal menghapus cutting order");
+      alert(err.response?.data?.error || "Failed to remove cutting order");
+    }
+  };
+
+  const handleMakeSonFromCutting = async (cutting) => {
+    if (!window.confirm(`Are you sure you want to create a new Son Sheet from cutting job ${cutting.jobNumber}?`)) return;
+    try {
+      await sheetApi.createSonFromCutting(id, cutting.id);
+      fetchData();
+      alert("Son Sheet successfully created!");
+    } catch (err) {
+      console.error("Failed to create son sheet:", err);
+      alert(err.response?.data?.error || "Failed to create Son Sheet");
     }
   };
 
@@ -185,6 +213,10 @@ export default function SheetDetailPage() {
               {sheet.length}×{sheet.width}×{sheet.thickness} mm
             </span>
             {" "}•{" "}
+            <span className="font-semibold text-text-primary" title="Material Density">
+              {(sheet.density * 1000000).toFixed(2)} g/cm³
+            </span>
+            {" "}•{" "}
             <span className="font-semibold text-primary">
               {formatWeight(calculateWeight(sheet))}
             </span>
@@ -199,9 +231,18 @@ export default function SheetDetailPage() {
           Save as Son
         </button>
 
-        {/* Delete Sheet Button */}
+        {/* Archive Sheet Button */}
         <button
           onClick={handleArchiveSheet}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-warning bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors cursor-pointer shrink-0"
+        >
+          <Archive className="w-3.5 h-3.5" />
+          Archive Sheet
+        </button>
+
+        {/* Delete Sheet Button */}
+        <button
+          onClick={handleDeleteSheetPermanent}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer shrink-0"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -213,17 +254,144 @@ export default function SheetDetailPage() {
       <div className="flex-1 overflow-y-auto flex flex-col">
         {/* Top section: Canvas + Stats side-by-side */}
         <div className="shrink-0 grid grid-cols-1 lg:grid-cols-4 gap-3 p-3">
-          {/* Canvas (3/4) */}
-          <div className="lg:col-span-3 bg-bg-surface rounded-xl border border-border p-3 theme-transition">
-            <h2 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Ruler className="w-3 h-3" /> Visual Canvas
-            </h2>
-            <MasterSheetCanvas
-              sheet={sheet}
-              cuttings={cuttings}
-              onPositionUpdate={handlePositionUpdate}
-              newCuttingPreview={newCuttingPreview}
-            />
+          {/* Left Column: Canvas + History (3/4) */}
+          <div className="lg:col-span-3 flex flex-col gap-3 min-w-0">
+            {/* Canvas Card */}
+            <div className="bg-bg-surface rounded-xl border border-border p-3 theme-transition">
+              <h2 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Ruler className="w-3 h-3" /> Visual Canvas
+              </h2>
+              <MasterSheetCanvas
+                sheet={sheet}
+                cuttings={cuttings}
+                onPositionUpdate={handlePositionUpdate}
+                newCuttingPreview={newCuttingPreview}
+              />
+            </div>
+
+            {/* Cutting History Card */}
+            <div ref={historyRef} className="bg-bg-surface rounded-xl border border-border p-4 theme-transition">
+              <h2 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Scissors className="w-3 h-3 text-primary" /> Cutting History ({cuttings.length})
+              </h2>
+              {cuttings.length === 0 ? (
+                <div className="text-center py-6 text-text-muted text-xs">
+                  No cutting orders placed yet. Use the form below to add one.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border text-text-muted font-medium uppercase tracking-wider text-[9px]">
+                        <th className="py-2 px-2 text-center w-12">No.</th>
+                        <th className="py-2 px-2">Job Number</th>
+                        <th className="py-2 px-2">Type</th>
+                        <th className="py-2 px-2">Dimensions</th>
+                        <th className="py-2 px-2">Area</th>
+                        <th className="py-2 px-2 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40 text-text-secondary font-medium">
+                      {(historyExpanded ? cuttings : cuttings.slice(0, 3)).map((cut, idx) => {
+                        const originalIndex = cuttings.indexOf(cut) + 1;
+                        return (
+                          <tr key={cut.id} className="hover:bg-bg-elevated/30 transition-colors">
+                            <td className="py-2.5 px-2 text-center text-text-muted font-semibold font-mono text-[10px]">
+                              #{originalIndex}
+                            </td>
+                            <td className="py-2.5 px-2 font-semibold text-text-primary">
+                              {cut.jobNumber}
+                            </td>
+                            <td className="py-2.5 px-2">
+                              <TypeBadge type={cut.cuttingType} />
+                            </td>
+                            <td className="py-2.5 px-2">
+                              <DimensionLabel type={cut.cuttingType} dims={cut.dimensions} />
+                            </td>
+                            <td className="py-2.5 px-2">
+                              {formatArea(cut.cutArea)}
+                            </td>
+                            <td className="py-2.5 px-2 text-right flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleMakeSonFromCutting(cut)}
+                                className="px-2 py-1 rounded bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
+                                title="Create Son Sheet from this cutting"
+                              >
+                                <GitBranch className="w-3 h-3" />
+                                Make Son
+                              </button>
+                              <button
+                                onClick={() => handleRemoveCutting(cut.id)}
+                                className="p-1 rounded hover:bg-danger/10 text-text-muted hover:text-danger transition-colors cursor-pointer"
+                                title="Delete cutting job"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  
+                  {cuttings.length > 3 && (
+                    <div className="flex justify-center mt-3 pt-3 border-t border-border/30">
+                      <div className="relative group">
+                        <button
+                          onClick={() => setHistoryExpanded(!historyExpanded)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-bg-surface hover:bg-bg-elevated hover:border-primary/40 hover:text-primary transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:scale-[1.02] text-xs font-semibold text-text-secondary"
+                        >
+                          {historyExpanded ? (
+                            <>
+                              Show Less <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                            </>
+                          ) : (
+                            <>
+                              Show More ({cuttings.length - 3} more) <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                            </>
+                          )}
+                        </button>
+                        
+                        {/* Hover Preview Dropdown */}
+                        {!historyExpanded && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 hidden group-hover:block w-80 bg-bg-surface/95 backdrop-blur-md border border-border rounded-xl shadow-2xl p-3 z-50 animate-fade-in divide-y divide-border/40 pointer-events-none group-hover:pointer-events-auto">
+                            <div className="pb-2 mb-2 text-center">
+                              <p className="text-[10px] font-bold text-text-primary uppercase tracking-wider">Remaining Cuttings</p>
+                              <p className="text-[9px] text-text-muted">Hovering list of items beyond the top 3</p>
+                            </div>
+                            <div className="max-h-56 overflow-y-auto space-y-2 pt-2 scrollbar-thin">
+                              {cuttings.slice(3).map((cut, idx) => {
+                                const originalIndex = idx + 4;
+                                return (
+                                  <div key={cut.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-bg-elevated/40 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-semibold font-mono text-text-muted">#{originalIndex}</span>
+                                      <div className="text-left">
+                                        <p className="text-[11px] font-bold text-text-primary leading-tight">{cut.jobNumber}</p>
+                                        <p className="text-[9px] text-text-muted text-left">
+                                          <DimensionLabel type={cut.cuttingType} dims={cut.dimensions} />
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-right">
+                                      <TypeBadge type={cut.cuttingType} />
+                                      <span className="text-[10px] font-semibold text-text-secondary">{formatArea(cut.cutArea)}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="pt-2 mt-2 text-center text-[9px] text-text-muted italic">
+                              Click to expand permanently inside table
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Stats sidebar (1/4) */}
@@ -239,6 +407,7 @@ export default function SheetDetailPage() {
                 scrapPercent={scrapPct}
               />
               <div className="space-y-1.5 mt-3 pt-3 border-t border-border/50 text-xs">
+                <StatRow label="Density" value={`${(sheet.density * 1000000).toFixed(3)} g/cm³`} />
                 <StatRow label="Total" value={formatArea(sheet.totalArea)} />
                 <StatRow label="Used" value={formatArea(sheet.usedArea || 0)} color="text-danger" />
                 <StatRow label="Available" value={formatArea(sheet.availableArea || 0)} color="text-primary" />
@@ -279,7 +448,7 @@ export default function SheetDetailPage() {
             sheet={sheet}
             onCreated={handleCuttingCreated}
             onPreviewChange={handlePreviewChange}
-            onViewHistory={() => setShowHistoryModal(true)}
+            onViewHistory={() => historyRef.current?.scrollIntoView({ behavior: "smooth" })}
             cuttingsCount={cuttings.length}
           />
         </div>

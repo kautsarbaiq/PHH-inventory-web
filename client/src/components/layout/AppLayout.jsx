@@ -12,6 +12,7 @@ import {
   User,
   ChevronRight,
   Archive,
+  Folder,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
@@ -26,6 +27,7 @@ export default function AppLayout() {
 
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/groups", label: "Groups", icon: Folder },
     { to: "/archived", label: "Archived", icon: Archive },
   ];
 

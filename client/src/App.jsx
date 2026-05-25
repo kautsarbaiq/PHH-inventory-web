@@ -12,6 +12,7 @@ import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import ArchivedPage from "./pages/ArchivedPage";
 import SheetDetailPage from "./pages/SheetDetailPage";
+import GroupsPage from "./pages/GroupsPage";
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -88,6 +89,7 @@ export default function App() {
             }
           >
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/groups" element={<GroupsPage />} />
             <Route path="/archived" element={<ArchivedPage />} />
             <Route path="/sheets/:id" element={<SheetDetailPage />} />
           </Route>

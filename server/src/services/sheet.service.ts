@@ -226,6 +226,12 @@ export class SheetService {
    * Get a sheet by ID with computed stats and cutting count.
    */
   async getSheetById(id: string): Promise<SheetWithStats | null> {
+    // Update lastOpenedAt on every fetch/detail view
+    await db
+      .update(masterSheets)
+      .set({ lastOpenedAt: new Date() })
+      .where(eq(masterSheets.id, id));
+
     const sheet = await db.query.masterSheets.findFirst({
       where: eq(masterSheets.id, id),
     });
@@ -355,7 +361,7 @@ export class SheetService {
         .select()
         .from(masterSheets)
         .where(inArray(masterSheets.id, rootIds))
-        .orderBy(desc(masterSheets.createdAt));
+        .orderBy(sql`${masterSheets.lastOpenedAt} DESC NULLS LAST, ${masterSheets.createdAt} DESC`);
 
       // Apply in-memory pagination
       const total = roots.length;
@@ -412,7 +418,7 @@ export class SheetService {
         .select()
         .from(masterSheets)
         .where(whereClause)
-        .orderBy(desc(masterSheets.createdAt))
+        .orderBy(sql`${masterSheets.lastOpenedAt} DESC NULLS LAST, ${masterSheets.createdAt} DESC`)
         .limit(limit)
         .offset(offset),
       db

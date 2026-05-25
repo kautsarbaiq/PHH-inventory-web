@@ -437,7 +437,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
         </Layer>
 
         <Layer>
-          {cuttings.map((cut) => {
+          {cuttings.map((cut, idx) => {
             const isBeingDragged = dragState?.id === cut.id;
             const isDragInvalid = isBeingDragged && !dragState.valid;
             const dragCoords = isBeingDragged ? { x: dragState.x, y: dragState.y } : null;
@@ -446,6 +446,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
               <CuttingShapeKonva
                 key={cut.id}
                 cutting={cut}
+                index={idx}
                 scale={baseScale}
                 offsetX={offsetX}
                 offsetY={offsetY}
@@ -494,7 +495,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
   );
 }
 
-function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd, isPreview }) {
+function CuttingShapeKonva({ cutting, index, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd, isPreview }) {
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
   const colors = isInvalid ? INVALID_COLOR : normalColors;
@@ -586,7 +587,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             <Text
               x={6}
               y={5}
-              text={jobNumber || `${dims.length}×${dims.width}`}
+              text={`${typeof index === 'number' ? `#${index + 1} ` : ''}${jobNumber || `${dims.length}×${dims.width}`}`}
               fill="white"
               fontSize={Math.max(9, Math.min(12, dims.length * scale * 0.1))}
               fontFamily="Inter, sans-serif"
@@ -617,7 +618,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             <Text
               x={-18}
               y={-6}
-              text={jobNumber || `r=${dims.radius}`}
+              text={`${typeof index === 'number' ? `#${index + 1} ` : ''}${jobNumber || `r=${dims.radius}`}`}
               fill="white"
               fontSize={10}
               fontFamily="Inter, sans-serif"
@@ -653,7 +654,7 @@ function CuttingShapeKonva({ cutting, scale, offsetX, offsetY, isInvalid, dragCo
             <Text
               x={6}
               y={dims.height * scale - 16}
-              text={jobNumber || `${dims.base}×${dims.height}`}
+              text={`${typeof index === 'number' ? `#${index + 1} ` : ''}${jobNumber || `${dims.base}×${dims.height}`}`}
               fill="white"
               fontSize={10}
               fontFamily="Inter, sans-serif"

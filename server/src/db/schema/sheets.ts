@@ -29,6 +29,7 @@ export const masterSheets = pgTable("master_sheets", {
   createdBy: text("created_by")
     .notNull()
     .references(() => user.id),
+  lastOpenedAt: timestamp("last_opened_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -16,6 +16,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
     width: "",
     thickness: "",
     weight: "",
+    density: "7.85", // Default to steel density in g/cm³
     kerfAllowance: "2",
     notes: "",
   });
@@ -25,12 +26,43 @@ export default function NewSheetModal({ onClose, onCreated }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      
+      const l = parseFloat(updated.length);
+      const w = parseFloat(updated.width);
+      const t = parseFloat(updated.thickness);
+      
+      if (l > 0 && w > 0 && t > 0) {
+        const volumeMm3 = l * w * t;
+        if (name === "weight") {
+          const weightKg = parseFloat(value);
+          if (!isNaN(weightKg) && weightKg > 0) {
+            // Density (g/cm³) = weight (kg) * 1,000,000 / volume (mm³)
+            updated.density = ((weightKg * 1000000) / volumeMm3).toFixed(3);
+          }
+        } else if (name === "density") {
+          const densityGcm3 = parseFloat(value);
+          if (!isNaN(densityGcm3) && densityGcm3 > 0) {
+            // Weight (kg) = density (g/cm³) * volume (mm³) / 1,000,000
+            updated.weight = ((densityGcm3 * volumeMm3) / 1000000).toFixed(2);
+          }
+        } else if (name === "length" || name === "width" || name === "thickness") {
+          const densityGcm3 = parseFloat(updated.density);
+          if (!isNaN(densityGcm3) && densityGcm3 > 0) {
+            updated.weight = ((densityGcm3 * volumeMm3) / 1000000).toFixed(2);
+          }
+        }
+      }
+      
+      return updated;
+    });
+
     if (fieldErrors[name]) {
       setFieldErrors((prev) => {
-        const next = { ...prev };
-        delete next[name];
-        return next;
+         const next = { ...prev };
+         delete next[name];
+         return next;
       });
     }
   };
@@ -45,12 +77,14 @@ export default function NewSheetModal({ onClose, onCreated }) {
     const w = parseFloat(form.width);
     const t = parseFloat(form.thickness);
     const wgt = parseFloat(form.weight);
+    const d = parseFloat(form.density);
     const k = parseFloat(form.kerfAllowance);
     
     if (isNaN(l) || l < 5) errors.length = "Min 5 mm";
     if (isNaN(w) || w < 5) errors.width = "Min 5 mm";
     if (isNaN(t) || t < 0.1) errors.thickness = "Min 0.1 mm";
     if (isNaN(wgt) || wgt <= 0) errors.weight = "Weight must be positive";
+    if (isNaN(d) || d <= 0) errors.density = "Density must be positive";
     if (isNaN(k) || k < 0) errors.kerfAllowance = "Min 0 mm";
 
     setFieldErrors(errors);
@@ -72,7 +106,7 @@ export default function NewSheetModal({ onClose, onCreated }) {
         length: parseFloat(form.length),
         width: parseFloat(form.width),
         thickness: parseFloat(form.thickness),
-        density: parseFloat(form.weight) / (parseFloat(form.length) * parseFloat(form.width) * parseFloat(form.thickness)),
+        density: parseFloat(form.density) / 1000000, // stored as kg/mm³
         kerfAllowance: parseFloat(form.kerfAllowance),
         notes: form.notes || undefined,
       });
@@ -193,68 +227,8 @@ export default function NewSheetModal({ onClose, onCreated }) {
               )}
             </div>
 
-            {/* Dimensions (Thickness, Weight, Width) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                  Thickness (mm)
-                </label>
-                <input
-                  name="thickness"
-                  type="number"
-                  value={form.thickness}
-                  onChange={handleChange}
-                  placeholder="10"
-                  required
-                  min="0.1"
-                  step="any"
-                  className={getInputClass("thickness")}
-                />
-                {fieldErrors.thickness && (
-                  <p className="text-xs text-danger-light mt-1">{fieldErrors.thickness}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                  Weight (kg) <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="weight"
-                  value={form.weight}
-                  onChange={handleChange}
-                  placeholder="e.g. 7.85"
-                  step="any"
-                  min="0"
-                  className={getInputClass("weight")}
-                />
-                {fieldErrors.weight && (
-                  <span className="text-[10px] text-danger mt-1 font-medium">{fieldErrors.weight}</span>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                  Width (mm)
-                </label>
-                <input
-                  name="width"
-                  type="number"
-                  value={form.width}
-                  onChange={handleChange}
-                  placeholder="1000"
-                  required
-                  min="5"
-                  step="any"
-                  className={getInputClass("width")}
-                />
-                {fieldErrors.width && (
-                  <p className="text-xs text-danger-light mt-1">{fieldErrors.width}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Length + Kerf */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Row 1: Length, Width, Thickness */}
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
                   Length (mm)
@@ -276,7 +250,87 @@ export default function NewSheetModal({ onClose, onCreated }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                  Kerf Allowance (mm)
+                  Width (mm)
+                </label>
+                <input
+                  name="width"
+                  type="number"
+                  value={form.width}
+                  onChange={handleChange}
+                  placeholder="1000"
+                  required
+                  min="5"
+                  step="any"
+                  className={getInputClass("width")}
+                />
+                {fieldErrors.width && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.width}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Thickness (mm)
+                </label>
+                <input
+                  name="thickness"
+                  type="number"
+                  value={form.thickness}
+                  onChange={handleChange}
+                  placeholder="10"
+                  required
+                  min="0.1"
+                  step="any"
+                  className={getInputClass("thickness")}
+                />
+                {fieldErrors.thickness && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.thickness}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Row 2: Density, Weight, Kerf Allowance */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Density (g/cm³) <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="density"
+                  value={form.density}
+                  onChange={handleChange}
+                  placeholder="e.g. 7.85"
+                  step="any"
+                  min="0.001"
+                  required
+                  className={getInputClass("density")}
+                />
+                {fieldErrors.density && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.density}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Weight (kg) <span className="text-danger">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="weight"
+                  value={form.weight}
+                  onChange={handleChange}
+                  placeholder="Calculated"
+                  step="any"
+                  min="0.01"
+                  required
+                  className={getInputClass("weight")}
+                />
+                {fieldErrors.weight && (
+                  <p className="text-xs text-danger-light mt-1">{fieldErrors.weight}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
+                  Kerf (mm)
                 </label>
                 <input
                   name="kerfAllowance"
@@ -288,12 +342,8 @@ export default function NewSheetModal({ onClose, onCreated }) {
                   step="any"
                   className={getInputClass("kerfAllowance")}
                 />
-                {fieldErrors.kerfAllowance ? (
+                {fieldErrors.kerfAllowance && (
                   <p className="text-xs text-danger-light mt-1">{fieldErrors.kerfAllowance}</p>
-                ) : (
-                  <p className="text-xs text-text-muted mt-1.5">
-                    Width of material consumed by the cutting tool
-                  </p>
                 )}
               </div>
             </div>

@@ -40,4 +40,14 @@ export const cuttingApi = {
     api.delete(`/sheets/${sheetId}/cuttings/${cuttingId}`),
 };
 
+// ---- Group API ----
+
+export const groupApi = {
+  list: () => api.get("/groups"),
+  getById: (id) => api.get(`/groups/${id}`),
+  create: (data) => api.post("/groups", data),
+  update: (id, data) => api.patch(`/groups/${id}`, data),
+  delete: (id) => api.delete(`/groups/${id}`),
+};
+
 export default api;
