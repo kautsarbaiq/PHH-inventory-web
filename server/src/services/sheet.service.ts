@@ -450,6 +450,8 @@ export class SheetService {
       notes?: string;
       status?: string;
       scrapArea?: number;
+      usedArea?: number;
+      isManualUsage?: boolean;
     }
   ) {
     const [updated] = await db
@@ -478,6 +480,14 @@ export class SheetService {
    * Recalculate the usedArea from all cutting orders.
    */
   async recalculateUsedArea(sheetId: string) {
+    const sheet = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, sheetId),
+    });
+
+    if (!sheet || sheet.isManualUsage) {
+      return;
+    }
+
     const [result] = await db
       .select({
         totalEffectiveArea: sql<number>`COALESCE(SUM(${cuttingOrders.effectiveArea}), 0)`,

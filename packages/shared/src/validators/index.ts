@@ -42,6 +42,8 @@ export const updateSheetSchema = z.object({
   notes: z.string().optional(),
   status: z.enum([SHEET_STATUS.ACTIVE, SHEET_STATUS.DEPLETED, SHEET_STATUS.ARCHIVED]).optional(),
   scrapArea: z.number().nonnegative("Scrap area cannot be negative").optional(),
+  usedArea: z.number().nonnegative("Used area cannot be negative").optional(),
+  isManualUsage: z.boolean().optional(),
 });
 
 export const createSonSheetSchema = z.object({

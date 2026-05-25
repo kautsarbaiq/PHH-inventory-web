@@ -21,6 +21,9 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
+  Edit2,
+  Check,
+  X,
 } from "lucide-react";
 import MasterSheetCanvas from "../components/canvas/MasterSheetCanvas";
 import CuttingOrderForm from "../components/forms/CuttingOrderForm";
@@ -41,6 +44,8 @@ export default function SheetDetailPage() {
   const [showSonModal, setShowSonModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [isEditingUsage, setIsEditingUsage] = useState(false);
+  const [newUsagePct, setNewUsagePct] = useState("");
   const historyRef = useRef(null);
 
   const handleArchiveSheet = async () => {
@@ -85,6 +90,28 @@ export default function SheetDetailPage() {
     } catch (err) {
       console.error("Failed to create son sheet:", err);
       alert(err.response?.data?.error || "Failed to create Son Sheet");
+    }
+  };
+
+  const startEditingUsage = () => {
+    setNewUsagePct(sheet.usedPercentage?.toString() || "0");
+    setIsEditingUsage(true);
+  };
+
+  const handleSaveUsage = async () => {
+    const pct = parseFloat(newUsagePct);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      alert("Please enter a valid percentage between 0 and 100.");
+      return;
+    }
+    const newUsedArea = sheet.totalArea * (pct / 100);
+    try {
+      await sheetApi.update(id, { usedArea: newUsedArea, isManualUsage: true });
+      setIsEditingUsage(false);
+      fetchData();
+    } catch (err) {
+      console.error("Failed to update usage:", err);
+      alert(err?.response?.data?.error || "Failed to update usage");
     }
   };
 
@@ -212,10 +239,14 @@ export default function SheetDetailPage() {
             <span className="font-medium">
               {sheet.length}×{sheet.width}×{sheet.thickness} mm
             </span>
-            {" "}•{" "}
-            <span className="font-semibold text-text-primary" title="Material Density">
-              {(sheet.density * 1000000).toFixed(2)} g/cm³
-            </span>
+            {sheet.density > 0 && (
+              <>
+                {" "}•{" "}
+                <span className="font-semibold text-text-primary" title="Material Density">
+                  {(sheet.density * 1000000).toFixed(2)} g/cm³
+                </span>
+              </>
+            )}
             {" "}•{" "}
             <span className="font-semibold text-primary">
               {formatWeight(calculateWeight(sheet))}
@@ -407,9 +438,42 @@ export default function SheetDetailPage() {
                 scrapPercent={scrapPct}
               />
               <div className="space-y-1.5 mt-3 pt-3 border-t border-border/50 text-xs">
-                <StatRow label="Density" value={`${(sheet.density * 1000000).toFixed(3)} g/cm³`} />
+                <StatRow label="Density" value={sheet.density > 0 ? `${(sheet.density * 1000000).toFixed(3)} g/cm³` : "—"} />
                 <StatRow label="Total" value={formatArea(sheet.totalArea)} />
-                <StatRow label="Used" value={formatArea(sheet.usedArea || 0)} color="text-danger" />
+                
+                <div className="flex justify-between items-center group">
+                  <span className="text-text-muted font-medium flex items-center gap-1">
+                    Used
+                    <button onClick={startEditingUsage} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-bg-elevated rounded text-text-muted hover:text-primary transition-all" title="Edit Usage">
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                  </span>
+                  {isEditingUsage ? (
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="number" 
+                        value={newUsagePct} 
+                        onChange={(e) => setNewUsagePct(e.target.value)}
+                        className="w-16 px-1 py-0.5 text-xs bg-bg-surface border border-border rounded text-right focus:outline-none focus:border-primary"
+                        autoFocus
+                        step="0.1"
+                      />
+                      <span className="text-xs text-text-muted">%</span>
+                      <button onClick={handleSaveUsage} className="p-0.5 text-primary hover:bg-primary/10 rounded">
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => setIsEditingUsage(false)} className="p-0.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="font-semibold text-danger tabular-nums">
+                      {formatArea(sheet.usedArea || 0)}
+                      {sheet.isManualUsage && <span className="ml-1 text-[9px] text-warning" title="Manual Usage Override">(M)</span>}
+                    </span>
+                  )}
+                </div>
+
                 <StatRow label="Available" value={formatArea(sheet.availableArea || 0)} color="text-primary" />
                 <StatRow label="Scrap" value={formatArea(sheet.scrapArea || 0)} color="text-scrap" />
                 <div className="border-t border-border/50 pt-1.5 space-y-1.5">

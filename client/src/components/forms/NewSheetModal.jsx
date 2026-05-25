@@ -32,27 +32,14 @@ export default function NewSheetModal({ onClose, onCreated }) {
       const l = parseFloat(updated.length);
       const w = parseFloat(updated.width);
       const t = parseFloat(updated.thickness);
+      const d = parseFloat(updated.density);
       
-      if (l > 0 && w > 0 && t > 0) {
+      if (l > 0 && w > 0 && t > 0 && d > 0) {
         const volumeMm3 = l * w * t;
-        if (name === "weight") {
-          const weightKg = parseFloat(value);
-          if (!isNaN(weightKg) && weightKg > 0) {
-            // Density (g/cm³) = weight (kg) * 1,000,000 / volume (mm³)
-            updated.density = ((weightKg * 1000000) / volumeMm3).toFixed(3);
-          }
-        } else if (name === "density") {
-          const densityGcm3 = parseFloat(value);
-          if (!isNaN(densityGcm3) && densityGcm3 > 0) {
-            // Weight (kg) = density (g/cm³) * volume (mm³) / 1,000,000
-            updated.weight = ((densityGcm3 * volumeMm3) / 1000000).toFixed(2);
-          }
-        } else if (name === "length" || name === "width" || name === "thickness") {
-          const densityGcm3 = parseFloat(updated.density);
-          if (!isNaN(densityGcm3) && densityGcm3 > 0) {
-            updated.weight = ((densityGcm3 * volumeMm3) / 1000000).toFixed(2);
-          }
-        }
+        // Weight (kg) = density (g/cm³) * volume (mm³) / 1,000,000
+        updated.weight = ((d * volumeMm3) / 1000000).toFixed(2);
+      } else {
+        updated.weight = "";
       }
       
       return updated;
@@ -83,8 +70,8 @@ export default function NewSheetModal({ onClose, onCreated }) {
     if (isNaN(l) || l < 5) errors.length = "Min 5 mm";
     if (isNaN(w) || w < 5) errors.width = "Min 5 mm";
     if (isNaN(t) || t < 0.1) errors.thickness = "Min 0.1 mm";
-    if (isNaN(wgt) || wgt <= 0) errors.weight = "Weight must be positive";
     if (isNaN(d) || d <= 0) errors.density = "Density must be positive";
+    if (isNaN(wgt) || wgt <= 0) errors.weight = "Calculated weight must be positive";
     if (isNaN(k) || k < 0) errors.kerfAllowance = "Min 0 mm";
 
     setFieldErrors(errors);
@@ -311,18 +298,15 @@ export default function NewSheetModal({ onClose, onCreated }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wider">
-                  Weight (kg) <span className="text-danger">*</span>
+                  Weight (kg) <span className="text-text-muted">(Calculated)</span>
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   name="weight"
-                  value={form.weight}
-                  onChange={handleChange}
-                  placeholder="Calculated"
-                  step="any"
-                  min="0.01"
-                  required
-                  className={getInputClass("weight")}
+                  value={form.weight ? `${form.weight} kg` : ""}
+                  readOnly
+                  placeholder="Auto-calculated"
+                  className={`${getInputClass("weight")} bg-bg-elevated/40 border-dashed cursor-not-allowed font-semibold text-primary`}
                 />
                 {fieldErrors.weight && (
                   <p className="text-xs text-danger-light mt-1">{fieldErrors.weight}</p>

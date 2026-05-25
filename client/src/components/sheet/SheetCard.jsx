@@ -117,7 +117,7 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
               </span>
             </h3>
             <p className="text-[11px] text-text-secondary mt-0.5">
-              {sheet.grade} • {sheet.supplier} • {(sheet.density * 1000000).toFixed(2)} g/cm³
+              {sheet.grade} • {sheet.supplier}{sheet.density > 0 ? ` • ${(sheet.density * 1000000).toFixed(2)} g/cm³` : ""}
             </p>
           </div>
         </div>
