@@ -42,6 +42,7 @@ export default function DashboardPage() {
   const [showModal, setShowModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
+  const [matchingSheetIds, setMatchingSheetIds] = useState([]);
 
   // Debounce all filter values (500ms)
   const debouncedSearch = useDebounce(search, 500);
@@ -65,6 +66,7 @@ export default function DashboardPage() {
       if (debouncedMinWidth) params.minWidth = Number(debouncedMinWidth);
       const { data } = await sheetApi.list(params);
       setSheets(data.data || []);
+      setMatchingSheetIds(data.matchingSheetIds || []);
       setPagination((prev) => ({
         ...prev,
         totalPages: data.pagination?.totalPages || 1,
@@ -87,6 +89,7 @@ export default function DashboardPage() {
     setMinWidth("");
     setStatusFilter("");
     setSearch("");
+    setMatchingSheetIds([]);
   };
 
   const hasActiveFilters = thickness || minLength || minWidth || statusFilter;
@@ -263,7 +266,12 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
             {sheets.map((sheet, idx) => (
-              <SheetCard key={sheet.id} sheet={sheet} />
+              <SheetCard 
+                key={sheet.id} 
+                sheet={sheet} 
+                matchingSheetIds={matchingSheetIds}
+                searchActive={!!debouncedSearch}
+              />
             ))}
           </div>
         )}

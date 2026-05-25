@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Package, AlertTriangle, Archive, ArrowRight, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
 import { formatPercent, calculateWeight, formatWeight } from "../../lib/calculations";
@@ -10,16 +10,42 @@ const STATUS_CONFIG = {
   archived: { label: "Archived", color: "text-scrap", bg: "bg-scrap/10", icon: Archive },
 };
 
-export default function SheetCard({ sheet, depth = 0 }) {
+// Recursive helper to check if any descendant sheet ID matches search
+const hasMatchingDescendant = (node, matchIds) => {
+  if (!node || !matchIds || matchIds.length === 0) return false;
+  if (!node.children || node.children.length === 0) return false;
+  return node.children.some(child => 
+    matchIds.includes(child.id) || hasMatchingDescendant(child, matchIds)
+  );
+};
+
+export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], searchActive = false }) {
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(false);
-  const [children, setChildren] = useState([]);
+  
+  // Decide initial expanded state
+  const shouldExpand = searchActive && hasMatchingDescendant(sheet, matchingSheetIds);
+  const [expanded, setExpanded] = useState(shouldExpand);
+  const [children, setChildren] = useState(sheet.children || []);
   const [loading, setLoading] = useState(false);
 
   const usedPct = sheet.totalArea > 0 ? (sheet.usedArea / sheet.totalArea) * 100 : 0;
   const statusCfg = STATUS_CONFIG[sheet.status] || STATUS_CONFIG.active;
   const StatusIcon = statusCfg.icon;
   const weight = calculateWeight(sheet);
+
+  // Sync children when sheet.children changes (like when search mode is triggered)
+  useEffect(() => {
+    if (sheet.children) {
+      setChildren(sheet.children);
+    }
+  }, [sheet.children]);
+
+  // Automatically expand if search is active and descendants match
+  useEffect(() => {
+    if (searchActive && hasMatchingDescendant(sheet, matchingSheetIds)) {
+      setExpanded(true);
+    }
+  }, [searchActive, matchingSheetIds, sheet]);
 
   const handleToggleExpand = async (e) => {
     e.stopPropagation();
@@ -46,11 +72,34 @@ export default function SheetCard({ sheet, depth = 0 }) {
     navigate(`/sheets/${sheet.id}`);
   };
 
-  // The deeper we go, the narrower it might get, so adjust styling
   const isNested = depth > 0;
+  const isHighlighted = searchActive && matchingSheetIds.includes(sheet.id);
+
+  // Premium responsive card styling for highlighted and nested cards
+  const getCardClass = () => {
+    const base = "flex flex-col bg-bg-surface transition-all duration-300 group animate-fade-in theme-transition";
+    
+    if (isHighlighted) {
+      if (isNested) {
+        // Highlighting for nested (Son) cards
+        return `${base} border border-primary border-l-4 border-l-primary bg-primary/5 rounded-lg p-3 my-2 shadow-[0_0_12px_rgba(var(--color-primary-rgb),0.12)]`;
+      } else {
+        // Highlighting for root (Main) cards
+        return `${base} rounded-xl border-2 border-primary bg-primary/5 shadow-lg shadow-primary/10 p-4`;
+      }
+    } else {
+      if (isNested) {
+        // Nested card regular styling
+        return `${base} border-l-2 border-l-primary/30 pl-3 mt-3`;
+      } else {
+        // Root card regular styling
+        return `${base} rounded-xl border border-border hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 p-4`;
+      }
+    }
+  };
 
   return (
-    <div className={`flex flex-col bg-bg-surface ${isNested ? 'border-l-2 border-l-primary/30 pl-3 mt-3' : 'rounded-xl border border-border hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 p-4'} transition-all duration-200 group animate-fade-in theme-transition`}>
+    <div className={getCardClass()}>
       {/* Sheet header */}
       <div 
         className="flex items-start justify-between mb-3 cursor-pointer"
@@ -61,9 +110,11 @@ export default function SheetCard({ sheet, depth = 0 }) {
             {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
           <div>
-            <h3 className={`font-semibold text-text-primary leading-tight flex items-center gap-1.5 ${isNested ? 'text-sm' : 'text-base'}`}>
-              {isNested && <GitBranch className="w-3 h-3 text-text-muted" />}
-              {sheet.sheetNumber}
+            <h3 className={`font-semibold leading-tight flex items-center gap-1.5 ${isNested ? 'text-sm' : 'text-base'} ${isHighlighted ? 'text-primary font-bold' : 'text-text-primary'}`}>
+              {isNested && <GitBranch className={`w-3.5 h-3.5 ${isHighlighted ? 'text-primary' : 'text-text-muted'}`} />}
+              <span className={isHighlighted ? 'underline decoration-primary/40 decoration-2 underline-offset-2' : ''}>
+                {sheet.sheetNumber}
+              </span>
             </h3>
             <p className="text-[11px] text-text-secondary mt-0.5">
               {sheet.grade} • {sheet.supplier}
@@ -132,7 +183,13 @@ export default function SheetCard({ sheet, depth = 0 }) {
             <div className="text-xs text-text-muted py-2 text-center">No Son Sheets</div>
           ) : (
             children.map(child => (
-              <SheetCard key={child.id} sheet={child} depth={depth + 1} />
+              <SheetCard 
+                key={child.id} 
+                sheet={child} 
+                depth={depth + 1} 
+                matchingSheetIds={matchingSheetIds}
+                searchActive={searchActive}
+              />
             ))
           )}
         </div>

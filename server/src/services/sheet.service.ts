@@ -2,7 +2,7 @@
 // PHH Inventory — Sheet Service
 // ============================================================
 
-import { eq, ne, desc, sql, and, ilike, gte, isNull } from "drizzle-orm";
+import { eq, ne, desc, sql, and, ilike, gte, isNull, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { masterSheets } from "../db/schema/sheets.js";
 import { cuttingOrders } from "../db/schema/cuttings.js";
@@ -254,6 +254,28 @@ export class SheetService {
   }
 
   /**
+   * Helper to recursively load all descendants of a sheet.
+   */
+  private async loadDescendants(sheet: any): Promise<any> {
+    const children = await db
+      .select()
+      .from(masterSheets)
+      .where(eq(masterSheets.parentId, sheet.id))
+      .orderBy(masterSheets.createdAt);
+
+    const childrenWithDescendants = [];
+    for (const child of children) {
+      const childWithDescendants = await this.loadDescendants(child);
+      childrenWithDescendants.push(childWithDescendants);
+    }
+
+    return {
+      ...sheet,
+      children: childrenWithDescendants,
+    };
+  }
+
+  /**
    * List sheets with optional search, filter, and pagination.
    */
   async listSheets(params: {
@@ -272,15 +294,100 @@ export class SheetService {
     const limit = params.limit ?? 20;
     const offset = (page - 1) * limit;
 
+    // ---- SPECIAL HANDLER FOR SEARCH (HIERARCHICAL RESOLUTION) ----
+    if (params.search) {
+      const conditions = [ilike(masterSheets.sheetNumber, `%${params.search}%`)];
+      if (params.status) {
+        conditions.push(eq(masterSheets.status, params.status));
+      }
+      if (params.excludeStatus) {
+        conditions.push(ne(masterSheets.status, params.excludeStatus));
+      }
+      if (params.thickness !== undefined && params.thickness > 0) {
+        conditions.push(eq(masterSheets.thickness, params.thickness));
+      }
+      if (params.minLength !== undefined && params.minLength > 0) {
+        conditions.push(gte(masterSheets.length, params.minLength));
+      }
+      if (params.minWidth !== undefined && params.minWidth > 0) {
+        conditions.push(gte(masterSheets.width, params.minWidth));
+      }
+
+      // 1. Find all matching sheets (root or son) matching the search and filters
+      const matchingSheets = await db
+        .select()
+        .from(masterSheets)
+        .where(and(...conditions));
+
+      const matchingIds = matchingSheets.map((s) => s.id);
+
+      if (matchingSheets.length === 0) {
+        return {
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+          matchingSheetIds: [],
+        };
+      }
+
+      // 2. Walk up to resolve the absolute root parent of each match
+      const rootIdsSet = new Set<string>();
+      for (const sheet of matchingSheets) {
+        let current = sheet;
+        while (current.parentId) {
+          const parent = await db.query.masterSheets.findFirst({
+            where: eq(masterSheets.id, current.parentId),
+          });
+          if (!parent) break;
+          current = parent;
+        }
+        rootIdsSet.add(current.id);
+      }
+
+      const rootIds = Array.from(rootIdsSet);
+
+      // 3. Query fully-detailed root sheets
+      const roots = await db
+        .select()
+        .from(masterSheets)
+        .where(inArray(masterSheets.id, rootIds))
+        .orderBy(desc(masterSheets.createdAt));
+
+      // Apply in-memory pagination
+      const total = roots.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginatedRoots = roots.slice(offset, offset + limit);
+
+      // 4. Pre-load all descendants for matching roots recursively
+      const paginatedRootsWithDescendants = [];
+      for (const root of paginatedRoots) {
+        const rootWithDescendants = await this.loadDescendants(root);
+        paginatedRootsWithDescendants.push(rootWithDescendants);
+      }
+
+      return {
+        data: paginatedRootsWithDescendants,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+        },
+        matchingSheetIds: matchingIds,
+      };
+    }
+
+    // ---- REGULAR BROWSING (DEFAULT FAST PATH) ----
     const conditions = [];
     if (params.status) {
       conditions.push(eq(masterSheets.status, params.status));
     }
     if (params.excludeStatus) {
       conditions.push(ne(masterSheets.status, params.excludeStatus));
-    }
-    if (params.search) {
-      conditions.push(ilike(masterSheets.sheetNumber, `%${params.search}%`));
     }
     if (params.thickness !== undefined && params.thickness > 0) {
       conditions.push(eq(masterSheets.thickness, params.thickness));
@@ -322,6 +429,7 @@ export class SheetService {
         total: countResult?.count ?? 0,
         totalPages: Math.ceil((countResult?.count ?? 0) / limit),
       },
+      matchingSheetIds: [],
     };
   }
 
