@@ -489,6 +489,7 @@ export default function GroupsPage() {
                             ) : (
                               <Square className="w-4 h-4 text-text-muted shrink-0" />
                             )}
+                            <div className="flex-1 min-w-0 flex justify-between items-center pr-2">
                               <div className="flex flex-col flex-1 min-w-0 pr-2">
                                 <span className="font-semibold text-text-primary truncate">
                                   {sheet.sheetNumber}
@@ -620,6 +621,7 @@ export default function GroupsPage() {
                             ) : (
                               <Square className="w-4 h-4 text-text-muted shrink-0" />
                             )}
+                            <div className="flex-1 min-w-0 flex justify-between items-center pr-2">
                               <div className="flex flex-col flex-1 min-w-0 pr-2">
                                 <span className="font-semibold text-text-primary truncate">
                                   {sheet.sheetNumber}
