@@ -2,7 +2,7 @@
 // PHH Inventory — Sheet Groups Schema
 // ============================================================
 
-import { pgTable, text, timestamp, uuid, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { masterSheets } from "./sheets";
 
@@ -25,7 +25,13 @@ export const sheetGroupItems = pgTable("sheet_group_items", {
     .notNull()
     .references(() => masterSheets.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  // A sheet can only appear once per group.
+  groupSheetUnique: uniqueIndex("sheet_group_items_group_sheet_unique").on(
+    table.groupId,
+    table.sheetId
+  ),
+}));
 
 export const sheetGroupsRelations = relations(sheetGroups, ({ many }) => ({
   items: many(sheetGroupItems),

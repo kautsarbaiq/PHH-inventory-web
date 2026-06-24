@@ -8,7 +8,26 @@ import { masterSheets } from "../db/schema/sheets.js";
 import { cuttingOrders } from "../db/schema/cuttings.js";
 import type { SheetWithStats, SheetStatus, GenealogyNode } from "@phh/shared";
 
+// Anything with a Drizzle query/select interface (db or a transaction handle).
+// Typed loosely because the top-level db and a tx handle have distinct,
+// deeply-generic types that are awkward to unify.
+type Executor = any;
+
 export class SheetService {
+  /**
+   * Derive a sheet's lifecycle status from its area accounting.
+   * Never overrides an explicit "archived" state.
+   */
+  private deriveStatus(
+    usedArea: number,
+    scrapArea: number,
+    totalArea: number,
+    currentStatus: string
+  ): string {
+    if (currentStatus === "archived") return "archived";
+    return totalArea > 0 && usedArea + scrapArea >= totalArea ? "depleted" : "active";
+  }
+
   /**
    * Create a new master sheet (Goods Receipt).
    */
@@ -76,6 +95,12 @@ export class SheetService {
       throw new Error("Parent sheet not found");
     }
 
+    // Area conservation: a son cut from the parent cannot be physically
+    // larger than the parent in either dimension.
+    if (data.length > parent.length || data.width > parent.width) {
+      throw new Error("Son sheet dimensions cannot exceed the parent sheet");
+    }
+
     const totalArea = data.length * data.width;
 
     const [sonSheet] = await db
@@ -120,7 +145,7 @@ export class SheetService {
     let length = 0;
     let width = 0;
     const dims: any = cutting.dimensions || {};
-    
+
     if (cutting.cuttingType === "rectangle") {
       length = Number(dims.length) || 0;
       width = Number(dims.width) || 0;
@@ -135,7 +160,11 @@ export class SheetService {
 
     const totalArea = cutting.cutArea; // Inherit area from cutting order exactly
 
-    const finalSheetNumber = customName ? customName.trim() : `${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
+    const trimmedName = customName?.trim();
+    const finalSheetNumber =
+      trimmedName && trimmedName.length > 0
+        ? trimmedName
+        : `${cutting.jobNumber.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}`;
 
     const [sonSheet] = await db
       .insert(masterSheets)
@@ -164,27 +193,39 @@ export class SheetService {
    * Get genealogy tree for a sheet (finds root, then builds tree downward).
    */
   async getGenealogy(sheetId: string): Promise<GenealogyNode | null> {
-    // 1. Find the root (walk up to the top mother)
-    let currentId = sheetId;
-    let rootSheet: any = await db.query.masterSheets.findFirst({
-      where: eq(masterSheets.id, currentId),
-    });
-
+    const rootSheet = await this.findRoot(sheetId);
     if (!rootSheet) return null;
-
-    while (rootSheet && rootSheet.parentId) {
-      const parent: any = await db.query.masterSheets.findFirst({
-        where: eq(masterSheets.id, rootSheet.parentId),
-      });
-      if (!parent) break;
-      rootSheet = parent;
-    }
-
-    // 2. Build tree recursively from root
-    return this.buildGenealogyNode(rootSheet.id);
+    return this.buildGenealogyNode(rootSheet.id, new Set<string>());
   }
 
-  private async buildGenealogyNode(sheetId: string): Promise<GenealogyNode | null> {
+  /**
+   * Walk up parentId to the absolute root, with cycle protection.
+   */
+  private async findRoot(sheetId: string): Promise<any | null> {
+    const visited = new Set<string>();
+    let current: any = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, sheetId),
+    });
+    if (!current) return null;
+
+    while (current && current.parentId && !visited.has(current.id)) {
+      visited.add(current.id);
+      const parent: any = await db.query.masterSheets.findFirst({
+        where: eq(masterSheets.id, current.parentId),
+      });
+      if (!parent || visited.has(parent.id)) break;
+      current = parent;
+    }
+    return current;
+  }
+
+  private async buildGenealogyNode(
+    sheetId: string,
+    visited: Set<string>
+  ): Promise<GenealogyNode | null> {
+    if (visited.has(sheetId)) return null; // cycle guard
+    visited.add(sheetId);
+
     const sheet = await db.query.masterSheets.findFirst({
       where: eq(masterSheets.id, sheetId),
     });
@@ -200,7 +241,7 @@ export class SheetService {
 
     const childNodes: GenealogyNode[] = [];
     for (const child of children) {
-      const node = await this.buildGenealogyNode(child.id);
+      const node = await this.buildGenealogyNode(child.id, visited);
       if (node) childNodes.push(node);
     }
 
@@ -224,32 +265,19 @@ export class SheetService {
 
   /**
    * Get genealogy trees for multiple sheets (batch).
-   * Deduplicates by finding unique roots, so if both a parent and child are in the list,
-   * only one tree is returned.
+   * Deduplicates by finding unique roots.
    */
   async getGenealogyBatch(sheetIds: string[]): Promise<GenealogyNode[]> {
     const rootIds = new Set<string>();
     const trees: GenealogyNode[] = [];
 
     for (const sheetId of sheetIds) {
-      // Walk up to find root
-      let current: any = await db.query.masterSheets.findFirst({
-        where: eq(masterSheets.id, sheetId),
-      });
-      if (!current) continue;
+      const root = await this.findRoot(sheetId);
+      if (!root) continue;
 
-      while (current && current.parentId) {
-        const parent: any = await db.query.masterSheets.findFirst({
-          where: eq(masterSheets.id, current.parentId),
-        });
-        if (!parent) break;
-        current = parent;
-      }
-
-      // Deduplicate by root ID
-      if (!rootIds.has(current.id)) {
-        rootIds.add(current.id);
-        const tree = await this.buildGenealogyNode(current.id);
+      if (!rootIds.has(root.id)) {
+        rootIds.add(root.id);
+        const tree = await this.buildGenealogyNode(root.id, new Set<string>());
         if (tree) trees.push(tree);
       }
     }
@@ -261,17 +289,20 @@ export class SheetService {
    * Get a sheet by ID with computed stats and cutting count.
    */
   async getSheetById(id: string): Promise<SheetWithStats | null> {
-    // Update lastOpenedAt on every fetch/detail view
-    await db
-      .update(masterSheets)
-      .set({ lastOpenedAt: new Date() })
-      .where(eq(masterSheets.id, id));
-
     const sheet = await db.query.masterSheets.findFirst({
       where: eq(masterSheets.id, id),
     });
 
     if (!sheet) return null;
+
+    // Fire-and-forget recency update so the read endpoint stays fast and
+    // does not block on a write (and read replicas stay usable).
+    db
+      .update(masterSheets)
+      .set({ lastOpenedAt: new Date() })
+      .where(eq(masterSheets.id, id))
+      .execute()
+      .catch((e) => console.error("lastOpenedAt update failed:", e));
 
     // Count cuttings
     const [countResult] = await db
@@ -279,25 +310,28 @@ export class SheetService {
       .from(cuttingOrders)
       .where(eq(cuttingOrders.sheetId, id));
 
-    const availableArea = sheet.totalArea - sheet.usedArea - sheet.scrapArea;
-    const usedPercentage =
-      sheet.totalArea > 0 ? (sheet.usedArea / sheet.totalArea) * 100 : 0;
+    const availableArea = Math.max(0, sheet.totalArea - sheet.usedArea - sheet.scrapArea);
+    const usedPercentage = sheet.totalArea > 0 ? (sheet.usedArea / sheet.totalArea) * 100 : 0;
+    const availablePercentage = sheet.totalArea > 0 ? (availableArea / sheet.totalArea) * 100 : 0;
 
     return {
       ...sheet,
       status: sheet.status as SheetStatus,
       parentId: sheet.parentId,
-      availableArea: Math.max(0, availableArea),
+      availableArea,
       usedPercentage: Math.round(usedPercentage * 100) / 100,
-      availablePercentage: Math.round((100 - usedPercentage) * 100) / 100,
+      availablePercentage: Math.round(availablePercentage * 100) / 100,
       cuttingCount: countResult?.count ?? 0,
     };
   }
 
   /**
-   * Helper to recursively load all descendants of a sheet.
+   * Helper to recursively load all descendants of a sheet (cycle-safe).
    */
-  private async loadDescendants(sheet: any): Promise<any> {
+  private async loadDescendants(sheet: any, visited: Set<string>): Promise<any> {
+    if (visited.has(sheet.id)) return { ...sheet, children: [] };
+    visited.add(sheet.id);
+
     const children = await db
       .select()
       .from(masterSheets)
@@ -306,14 +340,43 @@ export class SheetService {
 
     const childrenWithDescendants = [];
     for (const child of children) {
-      const childWithDescendants = await this.loadDescendants(child);
-      childrenWithDescendants.push(childWithDescendants);
+      childrenWithDescendants.push(await this.loadDescendants(child, visited));
     }
 
-    return {
-      ...sheet,
-      children: childrenWithDescendants,
-    };
+    return { ...sheet, children: childrenWithDescendants };
+  }
+
+  // ---- cuttingCount enrichment helpers ------------------------------
+
+  private collectIds(nodes: any[], acc: string[] = []): string[] {
+    for (const n of nodes) {
+      acc.push(n.id);
+      if (n.children?.length) this.collectIds(n.children, acc);
+    }
+    return acc;
+  }
+
+  private assignCounts(nodes: any[], counts: Map<string, number>) {
+    for (const n of nodes) {
+      n.cuttingCount = counts.get(n.id) ?? 0;
+      if (n.children?.length) this.assignCounts(n.children, counts);
+    }
+  }
+
+  /** Attach `cuttingCount` to every node (and nested child) in a single query. */
+  async attachCuttingCounts(nodes: any[]): Promise<any[]> {
+    const ids = this.collectIds(nodes);
+    if (ids.length === 0) return nodes;
+
+    const rows = await db
+      .select({ sheetId: cuttingOrders.sheetId, count: sql<number>`count(*)::int` })
+      .from(cuttingOrders)
+      .where(inArray(cuttingOrders.sheetId, ids))
+      .groupBy(cuttingOrders.sheetId);
+
+    const counts = new Map<string, number>(rows.map((r) => [r.sheetId, r.count]));
+    this.assignCounts(nodes, counts);
+    return nodes;
   }
 
   /**
@@ -365,28 +428,16 @@ export class SheetService {
       if (matchingSheets.length === 0) {
         return {
           data: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            totalPages: 0,
-          },
+          pagination: { page, limit, total: 0, totalPages: 0 },
           matchingSheetIds: [],
         };
       }
 
-      // 2. Walk up to resolve the absolute root parent of each match
+      // 2. Walk up to resolve the absolute root parent of each match (cycle-safe)
       const rootIdsSet = new Set<string>();
       for (const sheet of matchingSheets) {
-        let current = sheet;
-        while (current.parentId) {
-          const parent = await db.query.masterSheets.findFirst({
-            where: eq(masterSheets.id, current.parentId),
-          });
-          if (!parent) break;
-          current = parent;
-        }
-        rootIdsSet.add(current.id);
+        const root = await this.findRoot(sheet.id);
+        if (root) rootIdsSet.add(root.id);
       }
 
       const rootIds = Array.from(rootIdsSet);
@@ -406,18 +457,13 @@ export class SheetService {
       // 4. Pre-load all descendants for matching roots recursively
       const paginatedRootsWithDescendants = [];
       for (const root of paginatedRoots) {
-        const rootWithDescendants = await this.loadDescendants(root);
-        paginatedRootsWithDescendants.push(rootWithDescendants);
+        paginatedRootsWithDescendants.push(await this.loadDescendants(root, new Set<string>()));
       }
+      await this.attachCuttingCounts(paginatedRootsWithDescendants);
 
       return {
         data: paginatedRootsWithDescendants,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-        },
+        pagination: { page, limit, total, totalPages },
         matchingSheetIds: matchingIds,
       };
     }
@@ -462,6 +508,8 @@ export class SheetService {
         .where(whereClause),
     ]);
 
+    await this.attachCuttingCounts(sheets);
+
     return {
       data: sheets,
       pagination: {
@@ -475,7 +523,8 @@ export class SheetService {
   }
 
   /**
-   * Update sheet info (grade, supplier, notes, status, scrapArea).
+   * Update sheet info. Uses an explicit field allowlist (no raw spread) so the
+   * service is safe regardless of which validator the caller used.
    */
   async updateSheet(
     id: string,
@@ -494,25 +543,52 @@ export class SheetService {
       kerfAllowance?: number;
     }
   ) {
-    const updateData: any = { ...data };
+    const current = await db.query.masterSheets.findFirst({
+      where: eq(masterSheets.id, id),
+    });
+    if (!current) return null;
 
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+
+    const allowed: (keyof typeof data)[] = [
+      "grade",
+      "supplier",
+      "notes",
+      "status",
+      "scrapArea",
+      "usedArea",
+      "isManualUsage",
+      "length",
+      "width",
+      "thickness",
+      "density",
+      "kerfAllowance",
+    ];
+    for (const key of allowed) {
+      if (data[key] !== undefined) updateData[key] = data[key];
+    }
+
+    // Recompute totalArea when dimensions change.
+    const newLength = data.length ?? current.length;
+    const newWidth = data.width ?? current.width;
+    const newTotalArea =
+      data.length !== undefined || data.width !== undefined
+        ? newLength * newWidth
+        : current.totalArea;
     if (data.length !== undefined || data.width !== undefined) {
-      const currentSheet = await db.query.masterSheets.findFirst({
-        where: eq(masterSheets.id, id),
-      });
-      if (currentSheet) {
-        const newLength = data.length ?? currentSheet.length;
-        const newWidth = data.width ?? currentSheet.width;
-        updateData.totalArea = newLength * newWidth;
-      }
+      updateData.totalArea = newTotalArea;
+    }
+
+    // Auto-derive lifecycle status unless the caller set it explicitly.
+    if (data.status === undefined) {
+      const newUsed = data.usedArea ?? current.usedArea;
+      const newScrap = data.scrapArea ?? current.scrapArea;
+      updateData.status = this.deriveStatus(newUsed, newScrap, newTotalArea, current.status);
     }
 
     const [updated] = await db
       .update(masterSheets)
-      .set({
-        ...updateData,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(masterSheets.id, id))
       .returning();
 
@@ -530,40 +606,51 @@ export class SheetService {
   }
 
   /**
-   * Recalculate the usedArea from all cutting orders.
+   * Recalculate usedArea from all cutting orders, and update lifecycle status.
+   *
+   * @param executor  db or an active transaction handle.
+   * @param forceAuto when true, clears a manual-usage override and recomputes
+   *                  from cuts (used after a cutting is added/changed/removed).
    */
-  async recalculateUsedArea(sheetId: string) {
-    const sheet = await db.query.masterSheets.findFirst({
+  async recalculateUsedArea(sheetId: string, executor: Executor = db, forceAuto = false) {
+    const sheet = await executor.query.masterSheets.findFirst({
       where: eq(masterSheets.id, sheetId),
     });
 
-    if (!sheet || sheet.isManualUsage) {
-      return;
+    if (!sheet) return;
+    if (sheet.isManualUsage && !forceAuto) {
+      return; // respect the manual override
     }
 
-    const [result] = await db
+    const [result] = await executor
       .select({
         totalEffectiveArea: sql<number>`COALESCE(SUM(${cuttingOrders.effectiveArea}), 0)`,
       })
       .from(cuttingOrders)
       .where(eq(cuttingOrders.sheetId, sheetId));
 
-    await db
+    const usedArea = result?.totalEffectiveArea ?? 0;
+    const status = this.deriveStatus(usedArea, sheet.scrapArea, sheet.totalArea, sheet.status);
+
+    await executor
       .update(masterSheets)
       .set({
-        usedArea: result?.totalEffectiveArea ?? 0,
+        usedArea,
+        isManualUsage: forceAuto ? false : sheet.isManualUsage,
+        status,
         updatedAt: new Date(),
       })
       .where(eq(masterSheets.id, sheetId));
   }
 
   /**
-   * Permanently delete a sheet and all its related cuttings.
+   * Permanently delete a sheet and all its related cuttings (atomic).
    */
   async deleteSheetPermanently(id: string) {
-    // explicitly delete cuttings first just to be safe if no CASCADE
-    await db.delete(cuttingOrders).where(eq(cuttingOrders.sheetId, id));
-    await db.delete(masterSheets).where(eq(masterSheets.id, id));
+    await db.transaction(async (tx) => {
+      await tx.delete(cuttingOrders).where(eq(cuttingOrders.sheetId, id));
+      await tx.delete(masterSheets).where(eq(masterSheets.id, id));
+    });
   }
 }
 

@@ -12,9 +12,12 @@ import {
   AlertTriangle
 } from "lucide-react";
 import useDebounce from "../hooks/useDebounce";
+import { useRole } from "../hooks/useRole";
+import { SHEET_STATUS } from "@phh/shared/constants";
 
 export default function ArchivedPage() {
   const navigate = useNavigate();
+  const { isManager } = useRole();
   const [sheets, setSheets] = useState([]);
   const [search, setSearch] = useState("");
   const [thickness, setThickness] = useState("");
@@ -36,7 +39,7 @@ export default function ArchivedPage() {
     setLoading(true);
     setError("");
     try {
-      const params = { page: pagination.page, limit: 12, status: 'archived' };
+      const params = { page: pagination.page, limit: 12, status: SHEET_STATUS.ARCHIVED };
       if (debouncedSearch) params.search = debouncedSearch;
       if (debouncedThickness) params.thickness = Number(debouncedThickness);
       if (debouncedMinLength) params.minLength = Number(debouncedMinLength);
@@ -58,6 +61,14 @@ export default function ArchivedPage() {
   useEffect(() => {
     fetchSheets();
   }, [fetchSheets]);
+
+  // Reset to page 1 when filters change.
+  useEffect(() => {
+    setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [debouncedSearch, debouncedThickness, debouncedMinLength, debouncedMinWidth]);
+
+  const goToPage = (p) =>
+    setPagination((prev) => ({ ...prev, page: Math.min(Math.max(1, p), prev.totalPages || 1) }));
 
   const handleDeletePermanent = async (e, id, sheetNumber) => {
     e.stopPropagation(); // Prevent card click from navigating
@@ -288,14 +299,16 @@ export default function ArchivedPage() {
                       {sheet.length} × {sheet.width} × {sheet.thickness} mm
                     </span>
                     
-                    <button
-                      onClick={(e) => handleDeletePermanent(e, sheet.id, sheet.sheetNumber)}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold text-danger hover:bg-danger/10 transition-colors"
-                      title="Permanently Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Delete
-                    </button>
+                    {isManager && (
+                      <button
+                        onClick={(e) => handleDeletePermanent(e, sheet.id, sheet.sheetNumber)}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold text-danger hover:bg-danger/10 transition-colors"
+                        title="Permanently Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -303,6 +316,29 @@ export default function ArchivedPage() {
           </div>
         )}
       </div>
+
+      {/* ── Pagination ── */}
+      {!loading && sheets.length > 0 && pagination.totalPages > 1 && (
+        <div className="shrink-0 flex items-center justify-center gap-3 mt-5">
+          <button
+            onClick={() => goToPage(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            className="px-3 h-9 rounded-lg border border-border bg-bg-surface text-sm font-medium text-text-secondary hover:text-text-primary hover:border-text-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            Prev
+          </button>
+          <span className="text-sm text-text-secondary tabular-nums">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <button
+            onClick={() => goToPage(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            className="px-3 h-9 rounded-lg border border-border bg-bg-surface text-sm font-medium text-text-secondary hover:text-text-primary hover:border-text-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,14 +2,16 @@
 // PHH Inventory — Master Sheets Schema (with Kerf, Scrap & Parent)
 // ============================================================
 
-import { pgTable, text, timestamp, real, uuid, doublePrecision, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, real, uuid, doublePrecision, jsonb, boolean, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { user } from "./auth";
 import { cuttingOrders } from "./cuttings";
 
 export const masterSheets = pgTable("master_sheets", {
   id: uuid("id").primaryKey().defaultRandom(),
-  sheetNumber: text("sheet_number").notNull(),
+  // Unique constraint already enforced in the DB (master_sheets_sheet_number_unique);
+  // declared here so the TS schema stays the source of truth.
+  sheetNumber: text("sheet_number").notNull().unique(),
   grade: text("grade").notNull(),
   supplier: text("supplier").notNull(),
   length: real("length").notNull(),
@@ -33,7 +35,10 @@ export const masterSheets = pgTable("master_sheets", {
   lastOpenedAt: timestamp("last_opened_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  // Speeds up genealogy children lookups (WHERE parent_id = ...).
+  parentIdIdx: index("master_sheets_parent_id_idx").on(table.parentId),
+}));
 
 export const masterSheetsRelations = relations(masterSheets, ({ many, one }) => ({
   cuttings: many(cuttingOrders),

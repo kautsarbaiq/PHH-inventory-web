@@ -4,13 +4,18 @@
 
 export * from "./constants.js";
 export * from "./types/index.js";
+export * from "./geometry.js";
 // Re-export validators separately to avoid name collisions with types
 export {
   createSheetSchema,
   updateSheetSchema,
   createSonSheetSchema,
   createCuttingSchema,
+  updateCuttingSchema,
   updatePositionSchema,
+  makeSonSchema,
+  createGroupSchema,
+  updateGroupSchema,
 } from "./validators/index.js";
 // Export inferred types with unique names
 export type {

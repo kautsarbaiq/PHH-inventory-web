@@ -22,6 +22,8 @@ import {
 import NewSheetModal from "../components/forms/NewSheetModal";
 import SheetCard from "../components/sheet/SheetCard";
 import useDebounce from "../hooks/useDebounce";
+import { useRole } from "../hooks/useRole";
+import { SHEET_STATUS } from "@phh/shared/constants";
 
 const STATUS_CONFIG = {
   active: { label: "Active", color: "text-success", bg: "bg-success/10", icon: Package },
@@ -31,6 +33,7 @@ const STATUS_CONFIG = {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { isManager } = useRole();
   const [sheets, setSheets] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -59,7 +62,7 @@ export default function DashboardPage() {
       if (statusFilter) {
         params.status = statusFilter;
       } else {
-        params.excludeStatus = 'archived';
+        params.excludeStatus = SHEET_STATUS.ARCHIVED;
       }
       if (debouncedThickness) params.thickness = Number(debouncedThickness);
       if (debouncedMinLength) params.minLength = Number(debouncedMinLength);
@@ -82,6 +85,15 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchSheets();
   }, [fetchSheets]);
+
+  // Reset to the first page whenever the filters change so we never land on
+  // an out-of-range page.
+  useEffect(() => {
+    setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+  }, [debouncedSearch, statusFilter, debouncedThickness, debouncedMinLength, debouncedMinWidth]);
+
+  const goToPage = (p) =>
+    setPagination((prev) => ({ ...prev, page: Math.min(Math.max(1, p), prev.totalPages || 1) }));
 
   const clearFilters = () => {
     setThickness("");
@@ -111,14 +123,16 @@ export default function DashboardPage() {
             Manage master sheets and track material usage
           </p>
         </div>
-        <button
-          id="btn-new-sheet"
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 h-9 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          <Plus className="w-4 h-4 shrink-0" />
-          New Sheet
-        </button>
+        {isManager && (
+          <button
+            id="btn-new-sheet"
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 h-9 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            New Sheet
+          </button>
+        )}
       </div>
 
       {/* ── Filters ── */}
@@ -145,8 +159,8 @@ export default function DashboardPage() {
             className="px-3 h-9 bg-bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer text-sm theme-transition"
           >
             <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="depleted">Depleted</option>
+            <option value={SHEET_STATUS.ACTIVE}>Active</option>
+            <option value={SHEET_STATUS.DEPLETED}>Depleted</option>
           </select>
 
           {/* Toggle dimension filters */}
@@ -276,6 +290,29 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── Pagination ── */}
+      {!loading && sheets.length > 0 && pagination.totalPages > 1 && (
+        <div className="shrink-0 flex items-center justify-center gap-3 mt-5">
+          <button
+            onClick={() => goToPage(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            className="px-3 h-9 rounded-lg border border-border bg-bg-surface text-sm font-medium text-text-secondary hover:text-text-primary hover:border-text-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            Prev
+          </button>
+          <span className="text-sm text-text-secondary tabular-nums">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <button
+            onClick={() => goToPage(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            className="px-3 h-9 rounded-lg border border-border bg-bg-surface text-sm font-medium text-text-secondary hover:text-text-primary hover:border-text-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* ── New Sheet Modal ── */}
       {showModal && (

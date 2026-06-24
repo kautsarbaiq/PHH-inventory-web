@@ -10,23 +10,28 @@ import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
 import { apiRoutes } from "./routes/index.js";
+import { parseAllowedOrigins } from "./lib/origins.js";
 
 const app = express();
 app.set("trust proxy", true);
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === "production";
 
-// ---- Parse CORS origins from env ----
-const parseCorsOrigins = (): string[] => {
-  const env = process.env.CORS_ORIGIN || process.env.CLIENT_URL;
-  const defaults = ["http://localhost:5173"];
-  if (!env) return defaults;
-  const origins = env.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
-  return [...new Set([...origins, ...defaults])];
-};
+// ---- Baseline security headers (lightweight, no helmet dependency) ----
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-DNS-Prefetch-Control", "off");
+  if (isProduction) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 
 app.use(
   cors({
-    origin: parseCorsOrigins(),
+    origin: parseAllowedOrigins(),
     credentials: true,
   })
 );
@@ -53,7 +58,6 @@ app.get("/api/health", async (_req, res) => {
     res.status(500).json({
       status: "error",
       database: "failed",
-      error: err.message,
       timestamp: new Date().toISOString(),
     });
   }

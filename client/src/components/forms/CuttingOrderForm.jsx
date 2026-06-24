@@ -7,12 +7,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { cuttingApi } from "../../lib/api";
 import { calculateCutArea, formatArea } from "../../lib/calculations";
+import { CUTTING_TYPES as CT, MIN_CUT_DIMENSION } from "@phh/shared/constants";
 import { AlertCircle, Plus, CheckCircle2, Clock } from "lucide-react";
 
+const MIN_RADIUS = MIN_CUT_DIMENSION / 2;
+
 const CUTTING_TYPES = [
-  { value: "rectangle", label: "▭ Rectangle" },
-  { value: "circle", label: "⭕ Circle" },
-  { value: "triangle", label: "△ Triangle" },
+  { value: CT.RECTANGLE, label: "▭ Rectangle" },
+  { value: CT.CIRCLE, label: "⭕ Circle" },
+  { value: CT.TRIANGLE, label: "△ Triangle" },
 ];
 
 export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewChange, onViewHistory, cuttingsCount }) {
@@ -34,6 +37,17 @@ export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewC
       onPreviewChange(form);
     }
   }, [form, onPreviewChange]);
+
+  // For circles, position is the CENTER — so a default of (0,0) always fails the
+  // server's within-bounds check. When a radius is entered and the position is
+  // still the untouched default, nudge it to (r, r) so the circle starts valid.
+  useEffect(() => {
+    if (form.cuttingType !== "circle") return;
+    const r = parseFloat(form.radius);
+    if (!isNaN(r) && r > 0 && (form.positionX === "0" || form.positionX === "")) {
+      setForm((prev) => ({ ...prev, positionX: String(r), positionY: String(r) }));
+    }
+  }, [form.cuttingType, form.radius]);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -98,26 +112,42 @@ export default function CuttingOrderForm({ sheetId, sheet, onCreated, onPreviewC
       case "rectangle": {
         const l = parseFloat(form.length);
         const w = parseFloat(form.width);
-        if (isNaN(l) || l < 5) errors.length = "Min 5 mm";
-        if (isNaN(w) || w < 5) errors.width = "Min 5 mm";
+        if (isNaN(l) || l < MIN_CUT_DIMENSION) errors.length = `Min ${MIN_CUT_DIMENSION} mm`;
+        if (isNaN(w) || w < MIN_CUT_DIMENSION) errors.width = `Min ${MIN_CUT_DIMENSION} mm`;
         if (l > sheet.length) errors.length = `Max ${sheet.length} mm`;
         if (w > sheet.width) errors.width = `Max ${sheet.width} mm`;
+        // Top-left positioning: shape must fit within the sheet.
+        if (!errors.length && !isNaN(posX) && posX + l > sheet.length)
+          errors.positionX = `Max ${sheet.length - l} mm`;
+        if (!errors.width && !isNaN(posY) && posY + w > sheet.width)
+          errors.positionY = `Max ${sheet.width - w} mm`;
         break;
       }
       case "circle": {
         const r = parseFloat(form.radius);
-        if (isNaN(r) || r < 2.5) errors.radius = "Min 2.5 mm";
+        if (isNaN(r) || r < MIN_RADIUS) errors.radius = `Min ${MIN_RADIUS} mm`;
         if (r * 2 > Math.min(sheet.length, sheet.width))
           errors.radius = `Max ${Math.min(sheet.length, sheet.width) / 2} mm`;
+        // Circle position is the CENTER: it must be at least `r` from each edge.
+        if (!errors.radius && !isNaN(r)) {
+          if (!isNaN(posX) && (posX < r || posX + r > sheet.length))
+            errors.positionX = `${r}–${sheet.length - r} mm`;
+          if (!isNaN(posY) && (posY < r || posY + r > sheet.width))
+            errors.positionY = `${r}–${sheet.width - r} mm`;
+        }
         break;
       }
       case "triangle": {
         const b = parseFloat(form.base);
         const h = parseFloat(form.height);
-        if (isNaN(b) || b < 5) errors.base = "Min 5 mm";
-        if (isNaN(h) || h < 5) errors.height = "Min 5 mm";
+        if (isNaN(b) || b < MIN_CUT_DIMENSION) errors.base = `Min ${MIN_CUT_DIMENSION} mm`;
+        if (isNaN(h) || h < MIN_CUT_DIMENSION) errors.height = `Min ${MIN_CUT_DIMENSION} mm`;
         if (b > sheet.length) errors.base = `Max ${sheet.length} mm`;
         if (h > sheet.width) errors.height = `Max ${sheet.width} mm`;
+        if (!errors.base && !isNaN(posX) && posX + b > sheet.length)
+          errors.positionX = `Max ${sheet.length - b} mm`;
+        if (!errors.height && !isNaN(posY) && posY + h > sheet.width)
+          errors.positionY = `Max ${sheet.width - h} mm`;
         break;
       }
     }

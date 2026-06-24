@@ -6,56 +6,53 @@ import { eq, desc, sql, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { sheetGroups, sheetGroupItems } from "../db/schema/groups.js";
 import { masterSheets } from "../db/schema/sheets.js";
+import { sheetService } from "./sheet.service.js";
 
 export class GroupService {
   /**
-   * List all sheet groups.
-   * Sorted by isPinned DESC, then lastOpenedAt DESC (nulls last), then createdAt DESC.
+   * List all sheet groups with their item counts.
    */
   async listGroups() {
     const groups = await db
       .select()
       .from(sheetGroups)
-      .orderBy(
-        sql`is_pinned DESC, last_opened_at DESC NULLS LAST, created_at DESC`
-      );
+      .orderBy(sql`is_pinned DESC, last_opened_at DESC NULLS LAST, created_at DESC`);
 
-    // For each group, count the items in it
-    const groupsWithCounts = [];
-    for (const group of groups) {
-      const [countResult] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(sheetGroupItems)
-        .where(eq(sheetGroupItems.groupId, group.id));
+    if (groups.length === 0) return [];
 
-      groupsWithCounts.push({
-        ...group,
-        itemCount: countResult?.count ?? 0,
-      });
-    }
+    // Single grouped count instead of one query per group.
+    const counts = await db
+      .select({ groupId: sheetGroupItems.groupId, count: sql<number>`count(*)::int` })
+      .from(sheetGroupItems)
+      .where(inArray(sheetGroupItems.groupId, groups.map((g) => g.id)))
+      .groupBy(sheetGroupItems.groupId);
 
-    return groupsWithCounts;
+    const countMap = new Map<string, number>(counts.map((c) => [c.groupId, c.count]));
+
+    return groups.map((group) => ({
+      ...group,
+      itemCount: countMap.get(group.id) ?? 0,
+    }));
   }
 
   /**
-   * Get a group by ID, including its associated sheets.
-   * Also updates `lastOpenedAt` for the group.
+   * Get a group by ID, including its associated sheets (with cuttingCount).
    */
   async getGroupById(id: string) {
-    // 1. Update lastOpenedAt
-    await db
-      .update(sheetGroups)
-      .set({ lastOpenedAt: new Date(), updatedAt: new Date() })
-      .where(eq(sheetGroups.id, id));
-
-    // 2. Fetch the group
     const group = await db.query.sheetGroups.findFirst({
       where: eq(sheetGroups.id, id),
     });
 
     if (!group) return null;
 
-    // 3. Fetch all group items (sheets)
+    // Fire-and-forget recency update (don't block the read).
+    db
+      .update(sheetGroups)
+      .set({ lastOpenedAt: new Date(), updatedAt: new Date() })
+      .where(eq(sheetGroups.id, id))
+      .execute()
+      .catch((e) => console.error("group lastOpenedAt update failed:", e));
+
     const items = await db
       .select()
       .from(sheetGroupItems)
@@ -71,91 +68,73 @@ export class GroupService {
         .from(masterSheets)
         .where(inArray(masterSheets.id, sheetIds))
         .orderBy(desc(masterSheets.createdAt));
+      await sheetService.attachCuttingCounts(sheets);
     }
 
-    return {
-      ...group,
-      sheets,
-    };
+    return { ...group, sheets };
   }
 
   /**
-   * Create a new sheet group.
+   * Create a new sheet group (atomic; sheetIds de-duplicated).
    */
-  async createGroup(data: {
-    name: string;
-    description?: string;
-    sheetIds?: string[];
-  }) {
-    const [group] = await db
-      .insert(sheetGroups)
-      .values({
-        name: data.name,
-        description: data.description ?? null,
-      })
-      .returning();
+  async createGroup(data: { name: string; description?: string; sheetIds?: string[] }) {
+    const uniqueSheetIds = [...new Set(data.sheetIds ?? [])];
 
-    // Add sheet items if provided
-    if (data.sheetIds && data.sheetIds.length > 0) {
-      const values = data.sheetIds.map((sheetId) => ({
-        groupId: group.id,
-        sheetId,
-      }));
-      await db.insert(sheetGroupItems).values(values);
-    }
+    const groupId = await db.transaction(async (tx) => {
+      const [group] = await tx
+        .insert(sheetGroups)
+        .values({ name: data.name, description: data.description ?? null })
+        .returning();
 
-    return this.getGroupById(group.id);
+      if (uniqueSheetIds.length > 0) {
+        await tx
+          .insert(sheetGroupItems)
+          .values(uniqueSheetIds.map((sheetId) => ({ groupId: group.id, sheetId })));
+      }
+      return group.id;
+    });
+
+    return this.getGroupById(groupId);
   }
 
   /**
-   * Update an existing group (rename, toggle pin, update sheets list).
+   * Update a group (rename, toggle pin, replace sheet list) atomically.
    */
   async updateGroup(
     id: string,
-    data: {
-      name?: string;
-      description?: string;
-      isPinned?: boolean;
-      sheetIds?: string[];
-    }
+    data: { name?: string; description?: string; isPinned?: boolean; sheetIds?: string[] }
   ) {
-    const updateData: any = { updatedAt: new Date() };
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.description !== undefined) updateData.description = data.description;
-    if (data.isPinned !== undefined) updateData.isPinned = data.isPinned;
+    await db.transaction(async (tx) => {
+      const updateData: Record<string, unknown> = { updatedAt: new Date() };
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.isPinned !== undefined) updateData.isPinned = data.isPinned;
 
-    await db
-      .update(sheetGroups)
-      .set(updateData)
-      .where(eq(sheetGroups.id, id));
+      await tx.update(sheetGroups).set(updateData).where(eq(sheetGroups.id, id));
 
-    // Update items if provided
-    if (data.sheetIds !== undefined) {
-      // 1. Delete existing items
-      await db
-        .delete(sheetGroupItems)
-        .where(eq(sheetGroupItems.groupId, id));
-
-      // 2. Insert new items
-      if (data.sheetIds.length > 0) {
-        const values = data.sheetIds.map((sheetId) => ({
-          groupId: id,
-          sheetId,
-        }));
-        await db.insert(sheetGroupItems).values(values);
+      // Replace items if a new list was provided (delete + insert in one tx).
+      if (data.sheetIds !== undefined) {
+        await tx.delete(sheetGroupItems).where(eq(sheetGroupItems.groupId, id));
+        const uniqueSheetIds = [...new Set(data.sheetIds)];
+        if (uniqueSheetIds.length > 0) {
+          await tx
+            .insert(sheetGroupItems)
+            .values(uniqueSheetIds.map((sheetId) => ({ groupId: id, sheetId })));
+        }
       }
-    }
+    });
 
     return this.getGroupById(id);
   }
 
   /**
-   * Delete a sheet group.
+   * Delete a sheet group (atomic).
    */
   async deleteGroup(id: string) {
-    // Explicitly delete items (cascading relation will also handle this, but to be robust)
-    await db.delete(sheetGroupItems).where(eq(sheetGroupItems.groupId, id));
-    await db.delete(sheetGroups).where(eq(sheetGroups.id, id));
+    await db.transaction(async (tx) => {
+      await tx.delete(sheetGroupItems).where(eq(sheetGroupItems.groupId, id));
+      await tx.delete(sheetGroups).where(eq(sheetGroups.id, id));
+    });
   }
 }
 

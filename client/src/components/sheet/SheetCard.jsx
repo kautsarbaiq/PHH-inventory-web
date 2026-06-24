@@ -167,7 +167,7 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
 
       {/* Actions */}
       <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/50">
-        <span className="text-[10px] text-text-muted">{sheet.cuttingCount} Cuttings</span>
+        <span className="text-[10px] text-text-muted">{sheet.cuttingCount ?? 0} Cuttings</span>
         <button 
           onClick={handleNavigate}
           className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary-light transition-colors"

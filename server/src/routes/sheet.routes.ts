@@ -8,7 +8,13 @@ type IdParams = { id: string };
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import { sheetService } from "../services/sheet.service.js";
-import { createSheetSchema, updateSheetSchema, createSonSheetSchema } from "@phh/shared";
+import {
+  createSheetSchema,
+  updateSheetSchema,
+  createSonSheetSchema,
+  makeSonSchema,
+} from "@phh/shared";
+import { respondError } from "../utils/http-error.js";
 
 const router = Router();
 
@@ -36,8 +42,8 @@ router.get("/", async (req, res) => {
     });
 
     res.json({ success: true, ...result });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -52,8 +58,8 @@ router.post("/genealogy-batch", async (req: Request, res) => {
     }
     const trees = await sheetService.getGenealogyBatch(sheetIds);
     res.json({ success: true, data: trees });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -67,8 +73,8 @@ router.get("/:id", async (req: Request<IdParams>, res) => {
       return res.status(404).json({ success: false, error: "Sheet not found" });
     }
     res.json({ success: true, data: sheet });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -82,8 +88,8 @@ router.get("/:id/genealogy", async (req: Request<IdParams>, res) => {
       return res.status(404).json({ success: false, error: "Sheet not found" });
     }
     res.json({ success: true, data: tree });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -101,19 +107,10 @@ router.post("/", requireRole("manager"), async (req: Request, res) => {
       });
     }
 
-    const sheet = await sheetService.createSheet(
-      parsed.data,
-      (req as any).user.id
-    );
+    const sheet = await sheetService.createSheet(parsed.data, (req as any).user.id);
     res.status(201).json({ success: true, data: sheet });
-  } catch (error: any) {
-    if (error.message?.includes("unique")) {
-      return res.status(409).json({
-        success: false,
-        error: "Sheet number already exists",
-      });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -131,48 +128,42 @@ router.post("/:id/son", requireRole("manager"), async (req: Request<IdParams>, r
       });
     }
 
-    const sonSheet = await sheetService.createSonSheet(
-      req.params.id,
-      parsed.data,
-      (req as any).user.id
-    );
+    const sonSheet = await sheetService.createSonSheet(req.params.id, parsed.data, (req as any).user.id);
     res.status(201).json({ success: true, data: sonSheet });
-  } catch (error: any) {
-    if (error.message?.includes("unique")) {
-      return res.status(409).json({
-        success: false,
-        error: "Sheet number already exists",
-      });
-    }
-    if (error.message?.includes("not found")) {
-      return res.status(404).json({ success: false, error: error.message });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
 /**
  * POST /sheets/:id/cuttings/:cuttingId/make-son — Create son sheet from cutting job
  */
-router.post("/:id/cuttings/:cuttingId/make-son", requireRole("manager"), async (req: Request<{id: string, cuttingId: string}, {}, { customName?: string }>, res) => {
-  try {
-    const sonSheet = await sheetService.createSonFromCutting(
-      req.params.id,
-      req.params.cuttingId,
-      (req as any).user.id,
-      req.body.customName
-    );
-    res.status(201).json({ success: true, data: sonSheet });
-  } catch (error: any) {
-    if (error.message?.includes("not found")) {
-      return res.status(404).json({ success: false, error: error.message });
+router.post(
+  "/:id/cuttings/:cuttingId/make-son",
+  requireRole("manager"),
+  async (req: Request<{ id: string; cuttingId: string }>, res) => {
+    try {
+      const parsed = makeSonSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const sonSheet = await sheetService.createSonFromCutting(
+        req.params.id,
+        req.params.cuttingId,
+        (req as any).user.id,
+        parsed.data.customName
+      );
+      res.status(201).json({ success: true, data: sonSheet });
+    } catch (error) {
+      respondError(res, error);
     }
-    if (error.message?.includes("does not belong")) {
-      return res.status(400).json({ success: false, error: error.message });
-    }
-    res.status(500).json({ success: false, error: error.message });
   }
-});
+);
 
 /**
  * PATCH /sheets/:id — Update sheet (manager only)
@@ -193,8 +184,8 @@ router.patch("/:id", requireRole("manager"), async (req: Request<IdParams>, res)
       return res.status(404).json({ success: false, error: "Sheet not found" });
     }
     res.json({ success: true, data: updated });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -205,8 +196,8 @@ router.delete("/:id", requireRole("manager"), async (req: Request<IdParams>, res
   try {
     await sheetService.archiveSheet(req.params.id);
     res.json({ success: true, data: { message: "Sheet archived" } });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -217,8 +208,8 @@ router.delete("/:id/permanent", requireRole("manager"), async (req: Request<IdPa
   try {
     await sheetService.deleteSheetPermanently(req.params.id);
     res.json({ success: true, data: { message: "Sheet permanently deleted" } });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 

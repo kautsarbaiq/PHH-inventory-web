@@ -33,10 +33,12 @@ import GenealogyTree from "../components/sheet/GenealogyTree";
 import CuttingHistoryModal from "../components/sheet/CuttingHistoryModal";
 import SelectCuttingModal from "../components/forms/SelectCuttingModal";
 import EditSheetModal from "../components/forms/EditSheetModal";
+import { useRole } from "../hooks/useRole";
 
 export default function SheetDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isManager } = useRole();
   const [sheet, setSheet] = useState(null);
   const [cuttings, setCuttings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -262,41 +264,46 @@ export default function SheetDetailPage() {
           </p>
         </div>
         
-        {/* Edit Sheet Button */}
-        <button
-          onClick={() => setShowEditSheetModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-secondary bg-bg-elevated hover:bg-bg-elevated/80 rounded-lg transition-colors cursor-pointer shrink-0 border border-border"
-        >
-          <Settings2 className="w-3.5 h-3.5" />
-          Edit Sheet
-        </button>
+        {/* Manager-only sheet actions (server enforces requireRole('manager')) */}
+        {isManager && (
+          <>
+            {/* Edit Sheet Button */}
+            <button
+              onClick={() => setShowEditSheetModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-secondary bg-bg-elevated hover:bg-bg-elevated/80 rounded-lg transition-colors cursor-pointer shrink-0 border border-border"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              Edit Sheet
+            </button>
 
-        {/* Son Sheet Button */}
-        <button
-          onClick={() => setShowSonModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors cursor-pointer shrink-0"
-        >
-          <GitBranch className="w-3.5 h-3.5" />
-          Save as Son
-        </button>
+            {/* Son Sheet Button */}
+            <button
+              onClick={() => setShowSonModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors cursor-pointer shrink-0"
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              Save as Son
+            </button>
 
-        {/* Archive Sheet Button */}
-        <button
-          onClick={handleArchiveSheet}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-warning bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors cursor-pointer shrink-0"
-        >
-          <Archive className="w-3.5 h-3.5" />
-          Archive Sheet
-        </button>
+            {/* Archive Sheet Button */}
+            <button
+              onClick={handleArchiveSheet}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-warning bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors cursor-pointer shrink-0"
+            >
+              <Archive className="w-3.5 h-3.5" />
+              Archive Sheet
+            </button>
 
-        {/* Delete Sheet Button */}
-        <button
-          onClick={handleDeleteSheetPermanent}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer shrink-0"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          Delete Sheet
-        </button>
+            {/* Delete Sheet Button */}
+            <button
+              onClick={handleDeleteSheetPermanent}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete Sheet
+            </button>
+          </>
+        )}
       </div>
 
       {/* ═══ Row 2: Main workspace (scrollable vertically on small viewports) ═══ */}

@@ -18,9 +18,11 @@ export default function UsageDonutChart({
 }) {
   const { isDark } = useTheme();
 
+  // `availablePercent` already excludes scrap (server: availableArea / totalArea),
+  // so used + available + scrap ≈ 100 with no double-subtraction.
   const data = [
     { name: "Used", value: usedPercent, color: COLORS.used },
-    { name: "Available", value: Math.max(availablePercent - scrapPercent, 0), color: COLORS.available },
+    { name: "Available", value: Math.max(availablePercent, 0), color: COLORS.available },
     { name: "Scrap", value: scrapPercent, color: COLORS.scrap },
   ].filter((d) => d.value > 0);
 

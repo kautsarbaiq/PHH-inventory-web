@@ -3,7 +3,7 @@
 // Refactored: zoom, pan, touch support, hit areas, z-10
 // ============================================================
 
-import { useState, useRef, useMemo, useCallback, useEffect } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect, memo } from "react";
 import { Stage, Layer, Rect, Circle, Line, Text, Group } from "react-konva";
 import { validatePlacement } from "./CollisionEngine";
 import { useTheme } from "../layout/ThemeProvider";
@@ -37,6 +37,10 @@ const CANVAS_THEMES = {
     kerfText: "#94a3b8",
   },
 };
+
+// Memoized so unrelated parent re-renders (e.g. per-keystroke preview updates)
+// don't re-render every placed shape.
+const CuttingShapeKonva = memo(CuttingShapeKonvaImpl);
 
 export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, newCuttingPreview }) {
   const containerRef = useRef(null);
@@ -495,7 +499,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
   );
 }
 
-function CuttingShapeKonva({ cutting, index, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd, isPreview }) {
+function CuttingShapeKonvaImpl({ cutting, index, scale, offsetX, offsetY, isInvalid, dragCoords, onDragMove, onDragEnd, isPreview }) {
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
   const colors = isInvalid ? INVALID_COLOR : normalColors;

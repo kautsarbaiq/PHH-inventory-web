@@ -8,6 +8,13 @@
       "when": 1779678371254,
       "tag": "0000_remarkable_wolf_cub",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782320271707,
+      "tag": "0001_add_indexes_and_unique",
+      "breakpoints": true
     }
   ]
 }

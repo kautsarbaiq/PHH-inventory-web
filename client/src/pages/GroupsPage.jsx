@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { groupApi, sheetApi } from "../lib/api";
 import SheetCard from "../components/sheet/SheetCard";
+import { useRole } from "../hooks/useRole";
 import {
   Folder,
   Plus,
@@ -29,6 +30,7 @@ import {
 
 export default function GroupsPage() {
   const navigate = useNavigate();
+  const { isManager } = useRole();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -220,13 +222,15 @@ export default function GroupsPage() {
             Organize and group active master or son sheets for easy batch tracking
           </p>
         </div>
-        <button
-          onClick={triggerCreateGroup}
-          className="flex items-center gap-2 px-4 py-2 h-9 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm focus:outline-none"
-        >
-          <Plus className="w-4 h-4 shrink-0" />
-          Create Group
-        </button>
+        {isManager && (
+          <button
+            onClick={triggerCreateGroup}
+            className="flex items-center gap-2 px-4 py-2 h-9 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-all duration-150 shadow-sm hover:shadow-md cursor-pointer text-sm focus:outline-none"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            Create Group
+          </button>
+        )}
       </div>
 
       {/* Main Workspace split */}
@@ -293,22 +297,26 @@ export default function GroupsPage() {
 
                     {/* Quick controls */}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                      <button
-                        onClick={(e) => handleTogglePin(e, group)}
-                        className={`p-1 rounded hover:bg-bg-hover transition-colors ${
-                          group.isPinned ? "text-warning" : "text-text-muted hover:text-warning"
-                        }`}
-                        title={group.isPinned ? "Unpin Group" : "Pin Group"}
-                      >
-                        <Pin className={`w-3.5 h-3.5 ${group.isPinned ? "fill-warning rotate-45" : ""}`} />
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteGroup(e, group.id)}
-                        className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-danger transition-colors"
-                        title="Delete Group"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {isManager && (
+                        <>
+                          <button
+                            onClick={(e) => handleTogglePin(e, group)}
+                            className={`p-1 rounded hover:bg-bg-hover transition-colors ${
+                              group.isPinned ? "text-warning" : "text-text-muted hover:text-warning"
+                            }`}
+                            title={group.isPinned ? "Unpin Group" : "Pin Group"}
+                          >
+                            <Pin className={`w-3.5 h-3.5 ${group.isPinned ? "fill-warning rotate-45" : ""}`} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteGroup(e, group.id)}
+                            className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-danger transition-colors"
+                            title="Delete Group"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -341,14 +349,16 @@ export default function GroupsPage() {
                     <h2 className="text-base font-bold text-text-primary leading-tight truncate">
                       {activeGroup.name}
                     </h2>
-                    <button
-                      onClick={(e) => handleTogglePin(e, activeGroup)}
-                      className={`p-1 rounded hover:bg-bg-hover transition-colors shrink-0 ${
-                        activeGroup.isPinned ? "text-warning" : "text-text-muted hover:text-warning"
-                      }`}
-                    >
-                      <Pin className={`w-3.5 h-3.5 ${activeGroup.isPinned ? "fill-warning rotate-45" : ""}`} />
-                    </button>
+                    {isManager && (
+                      <button
+                        onClick={(e) => handleTogglePin(e, activeGroup)}
+                        className={`p-1 rounded hover:bg-bg-hover transition-colors shrink-0 ${
+                          activeGroup.isPinned ? "text-warning" : "text-text-muted hover:text-warning"
+                        }`}
+                      >
+                        <Pin className={`w-3.5 h-3.5 ${activeGroup.isPinned ? "fill-warning rotate-45" : ""}`} />
+                      </button>
+                    )}
                   </div>
                   {activeGroup.description && (
                     <p className="text-xs text-text-secondary mt-0.5 leading-tight">
@@ -361,13 +371,15 @@ export default function GroupsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={triggerEditGroup}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-text-primary bg-bg-elevated hover:bg-bg-hover border border-border rounded-lg transition-colors cursor-pointer"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    Manage Items
-                  </button>
+                  {isManager && (
+                    <button
+                      onClick={triggerEditGroup}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-text-primary bg-bg-elevated hover:bg-bg-hover border border-border rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      Manage Items
+                    </button>
+                  )}
                   <button
                     onClick={() => navigate(`/groups/${activeGroup.id}/canvas`)}
                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors cursor-pointer"
@@ -375,13 +387,15 @@ export default function GroupsPage() {
                     <GitBranch className="w-3 h-3" />
                     Canvas View
                   </button>
-                  <button
-                    onClick={(e) => handleDeleteGroup(e, activeGroup.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Delete Group
-                  </button>
+                  {isManager && (
+                    <button
+                      onClick={(e) => handleDeleteGroup(e, activeGroup.id)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete Group
+                    </button>
+                  )}
                 </div>
               </div>
 

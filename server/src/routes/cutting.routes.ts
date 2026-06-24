@@ -6,7 +6,8 @@ import { Router, type Request } from "express";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
 import { cuttingService } from "../services/cutting.service.js";
-import { createCuttingSchema, updatePositionSchema } from "@phh/shared";
+import { createCuttingSchema, updatePositionSchema, updateCuttingSchema } from "@phh/shared";
+import { respondError } from "../utils/http-error.js";
 
 const router = Router({ mergeParams: true }); // Access :sheetId from parent
 
@@ -22,12 +23,10 @@ router.use(requireAuth);
  */
 router.get("/", async (req: Request<SheetParams>, res) => {
   try {
-    const cuttings = await cuttingService.getCuttingsBySheet(
-      req.params.sheetId
-    );
+    const cuttings = await cuttingService.getCuttingsBySheet(req.params.sheetId);
     res.json({ success: true, data: cuttings });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -51,17 +50,8 @@ router.post("/", async (req: Request<SheetParams>, res) => {
       (req as any).user.id
     );
     res.status(201).json({ success: true, data: cutting });
-  } catch (error: any) {
-    if (error.message.includes("Placement invalid")) {
-      return res.status(422).json({ success: false, error: error.message });
-    }
-    if (error.message.includes("not found")) {
-      return res.status(404).json({ success: false, error: error.message });
-    }
-    if (error.message.includes("not active")) {
-      return res.status(409).json({ success: false, error: error.message });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -85,11 +75,8 @@ router.patch("/:id/position", async (req: Request<CuttingParams>, res) => {
       parsed.data
     );
     res.json({ success: true, data: updated });
-  } catch (error: any) {
-    if (error.message.includes("Invalid position")) {
-      return res.status(422).json({ success: false, error: error.message });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -98,17 +85,23 @@ router.patch("/:id/position", async (req: Request<CuttingParams>, res) => {
  */
 router.patch("/:id", async (req: Request<CuttingParams>, res) => {
   try {
+    const parsed = updateCuttingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
     const cutting = await cuttingService.updateCutting(
       req.params.id,
       req.params.sheetId,
-      req.body
+      parsed.data
     );
     res.json({ success: true, data: cutting });
-  } catch (error: any) {
-    if (error.message.includes("Placement invalid") || error.message.includes("Invalid position")) {
-      return res.status(422).json({ success: false, error: error.message });
-    }
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 
@@ -119,8 +112,8 @@ router.delete("/:id", requireRole("manager"), async (req: Request<CuttingParams>
   try {
     await cuttingService.deleteCutting(req.params.id, req.params.sheetId);
     res.json({ success: true, data: { message: "Cutting removed" } });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    respondError(res, error);
   }
 });
 

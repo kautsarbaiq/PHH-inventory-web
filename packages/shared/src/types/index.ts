@@ -25,14 +25,19 @@ export interface MasterSheet {
   length: number;
   width: number;
   thickness: number;
+  density: number;
   totalArea: number;
   usedArea: number;
+  isManualUsage: boolean;
   scrapArea: number;
   kerfAllowance: number;
   status: SheetStatus;
   notes: string | null;
+  shape: string;
+  dimensions: unknown | null;
   parentId: string | null;
   createdBy: string;
+  lastOpenedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -79,6 +84,7 @@ export interface CreateSheetInput {
   length: number;
   width: number;
   thickness: number;
+  density: number;
   kerfAllowance?: number;
   notes?: string;
 }
@@ -89,6 +95,13 @@ export interface UpdateSheetInput {
   notes?: string;
   status?: SheetStatus;
   scrapArea?: number;
+  usedArea?: number;
+  isManualUsage?: boolean;
+  length?: number;
+  width?: number;
+  thickness?: number;
+  density?: number;
+  kerfAllowance?: number;
 }
 
 // ---- Cutting Types ----
@@ -145,6 +158,36 @@ export interface UpdateCuttingPositionInput {
   positionX: number;
   positionY: number;
   rotation?: number;
+}
+
+export interface UpdateCuttingInput {
+  jobNumber?: string;
+  dimensions?: CuttingDimensions;
+  notes?: string;
+}
+
+// ---- Group Types ----
+export interface SheetGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  isPinned: boolean;
+  lastOpenedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateGroupInput {
+  name: string;
+  description?: string;
+  sheetIds?: string[];
+}
+
+export interface UpdateGroupInput {
+  name?: string;
+  description?: string;
+  isPinned?: boolean;
+  sheetIds?: string[];
 }
 
 // ---- Collision Types ----

@@ -6,15 +6,10 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js";
 import * as schema from "../db/schema/auth.js";
+import { parseAllowedOrigins } from "./origins.js";
 
-// ---- Parse trusted origins from env ----
-const parseTrustedOrigins = (): string[] => {
-  const env = process.env.CORS_ORIGIN || process.env.CLIENT_URL;
-  const defaults = ["http://localhost:5173"];
-  if (!env) return defaults;
-  const origins = env.split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean);
-  return [...new Set([...origins, ...defaults])];
-};
+const isProduction = process.env.NODE_ENV === "production";
+const defaultBaseURL = `http://localhost:${process.env.PORT || 3001}`;
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -26,18 +21,42 @@ export const auth = betterAuth({
       verification: schema.verification,
     },
   }),
-  baseURL: process.env.BETTER_AUTH_URL || "https://phh-inventory-web.onrender.com",
+  baseURL: process.env.BETTER_AUTH_URL || defaultBaseURL,
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: 8,
   },
-  trustedOrigins: parseTrustedOrigins(),
+  trustedOrigins: parseAllowedOrigins(),
+  // Throttle credential-stuffing / brute-force against the auth endpoints.
+  rateLimit: {
+    enabled: true,
+    window: 60, // seconds
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 60, max: 5 },
+    },
+  },
   user: {
     additionalFields: {
       role: {
         type: "string",
         required: false,
         defaultValue: "operator",
-        input: true,
+        // SECURITY: never allow the client to set its own role at sign-up.
+        // Roles are assigned server-side (DB seed / admin action) only.
+        input: false,
+      },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Defense-in-depth: force every self-registered user to "operator",
+        // even if a future config change re-enables role input.
+        before: async (user: Record<string, unknown>) => {
+          return { data: { ...user, role: "operator" } };
+        },
       },
     },
   },
@@ -46,8 +65,8 @@ export const auth = betterAuth({
       generateId: "uuid",
     },
     defaultCookieAttributes: {
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
     },
   },
 });
