@@ -15,6 +15,13 @@
       "when": 1782320271707,
       "tag": "0001_add_indexes_and_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782358792929,
+      "tag": "0002_wms_tables",
+      "breakpoints": true
     }
   ]
 }
