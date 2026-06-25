@@ -80,6 +80,18 @@ router.post("/pick-lists/:id/pick", (req: Request<{ id: string }>, res) => {
   }
 });
 
+router.post(
+  "/pick-lists/:id/lines/:lineId/pick-all",
+  (req: Request<{ id: string; lineId: string }>, res) => {
+    try {
+      const result = wmsService.pickLineFully(req.params.id, req.params.lineId);
+      res.status(result.ok ? 200 : 400).json({ success: result.ok, ...result });
+    } catch (e) {
+      respondError(res, e);
+    }
+  }
+);
+
 // ---- Placement ----
 router.get("/placements", (_req, res) => {
   try {

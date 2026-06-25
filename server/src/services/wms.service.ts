@@ -237,6 +237,14 @@ export class WmsService {
     return { ok: true, message: `${line.sku} picked  ·  ${line.qty_picked}/${line.qty_to_pick}  ·  ${line.bin_code}` };
   }
 
+  pickLineFully(listId: string, lineId: string): ScanResult {
+    const list = this.pickLists.find((l) => l.id === listId);
+    const line = list?.lines.find((l) => l.id === lineId);
+    if (!list || !line) return { ok: false, message: "Pick line not found" };
+    line.qty_picked = line.qty_to_pick;
+    return { ok: true, message: `${line.sku} fully picked` };
+  }
+
   // ----- placement -----
   placeByBarcode(itemId: string, locationCode: string): ScanResult {
     const item = this.placements.find((p) => p.id === itemId);
