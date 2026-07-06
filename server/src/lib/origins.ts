@@ -20,8 +20,7 @@ export function parseAllowedOrigins(): string[] {
     .map((o) => o.trim().replace(/\/$/, ""))
     .filter(Boolean);
 
-  // 5173 = web client (Vite), 5599 = WMS mobile app running on Flutter web.
-  const devDefaults = isProd ? [] : ["http://localhost:5173", "http://localhost:5599"];
+  const devDefaults = isProd ? [] : ["http://localhost:5173"];
   const origins = [...new Set([...fromEnv, ...devDefaults])];
 
   if (isProd && origins.length === 0) {

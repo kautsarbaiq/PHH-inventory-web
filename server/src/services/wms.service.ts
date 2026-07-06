@@ -203,6 +203,11 @@ export class WmsService {
     const order = this.orders.find((o) => o.id === poId);
     const item = order?.items.find((i) => i.id === itemId);
     if (!order || !item) return { ok: false, message: "Item not found" };
+    // Guard against re-processing an already-complete line, which would
+    // otherwise create a second placement entry for the same goods.
+    if (item.received_qty >= item.expected_qty) {
+      return { ok: false, message: `${item.sku} already fully received` };
+    }
     item.received_qty = item.expected_qty;
     this.ensurePlacement(order, item);
     return { ok: true, message: `${item.sku} fully received` };
@@ -241,6 +246,9 @@ export class WmsService {
     const list = this.pickLists.find((l) => l.id === listId);
     const line = list?.lines.find((l) => l.id === lineId);
     if (!list || !line) return { ok: false, message: "Pick line not found" };
+    if (line.qty_picked >= line.qty_to_pick) {
+      return { ok: false, message: `${line.sku} already fully picked` };
+    }
     line.qty_picked = line.qty_to_pick;
     return { ok: true, message: `${line.sku} fully picked` };
   }
@@ -257,3 +265,10 @@ export class WmsService {
 }
 
 export const wmsService = new WmsService();
+
+// WMS state lives in this single process's memory: it resets on restart and is
+// NOT shared across instances. Persist to Postgres (migration 0002 / schema
+// server/src/db/schema/wms.ts) before running more than one instance.
+console.warn(
+  "[WMS] state is in-memory (non-persistent, single-process). See migration 0002 to enable Postgres persistence."
+);
