@@ -10,6 +10,20 @@ import { useTheme } from "../layout/ThemeProvider";
 
 const GRID_SIZE = 10; // mm
 
+// Safely coerce a dimensions value (object or JSON string) to an object.
+// Malformed JSON returns {} instead of throwing and blanking the whole canvas.
+const parseDims = (dimensions) => {
+  if (dimensions && typeof dimensions === "object") return dimensions;
+  if (typeof dimensions === "string") {
+    try {
+      return JSON.parse(dimensions);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+};
+
 // Shape colors (theme-invariant)
 const SHAPE_COLORS = {
   rectangle: { fill: "rgba(59,130,246,0.5)", stroke: "#3b82f6" },
@@ -108,9 +122,13 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
   const baseScale = useMemo(() => {
     const availW = canvasWidth - CANVAS_PADDING * 2;
     const availH = canvasHeight - CANVAS_PADDING * 2;
+    // Guard degenerate sheets (0/negative dims) so scale never becomes
+    // Infinity/NaN and corrupt every shape's geometry.
+    if (!(sheet.length > 0) || !(sheet.width > 0)) return 1;
     const scaleX = availW / sheet.length;
     const scaleY = availH / sheet.width;
-    return Math.min(scaleX, scaleY);
+    const s = Math.min(scaleX, scaleY);
+    return Number.isFinite(s) && s > 0 ? s : 1;
   }, [sheet.length, sheet.width, canvasWidth, canvasHeight]);
 
   const sheetPixelW = sheet.length * baseScale;
@@ -197,7 +215,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
       const snappedX = snapToGrid(rawX);
       const snappedY = snapToGrid(rawY);
 
-      const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
+      const dims = parseDims(dimensions);
       const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
       const result = validatePlacement(sheet, otherCuttings, {
         cuttingType,
@@ -223,7 +241,7 @@ export default function MasterSheetCanvas({ sheet, cuttings, onPositionUpdate, n
       const newX = snapToGrid((node.x() - offsetX) / baseScale);
       const newY = snapToGrid((node.y() - offsetY) / baseScale);
 
-      const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
+      const dims = parseDims(dimensions);
       const otherCuttings = cuttings.filter((c) => c.id !== cuttingId);
       const result = validatePlacement(sheet, otherCuttings, {
         cuttingType,
@@ -503,7 +521,7 @@ function CuttingShapeKonvaImpl({ cutting, index, scale, offsetX, offsetY, isInva
   const { cuttingType, dimensions, positionX, positionY, jobNumber } = cutting;
   const normalColors = SHAPE_COLORS[cuttingType] || SHAPE_COLORS.rectangle;
   const colors = isInvalid ? INVALID_COLOR : normalColors;
-  const dims = typeof dimensions === "string" ? JSON.parse(dimensions) : dimensions;
+  const dims = parseDims(dimensions);
 
   const pixelX = offsetX + positionX * scale;
   const pixelY = offsetY + positionY * scale;
