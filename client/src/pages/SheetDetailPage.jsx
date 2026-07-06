@@ -113,6 +113,10 @@ export default function SheetDetailPage() {
       alert("Please enter a valid percentage between 0 and 100.");
       return;
     }
+    if (!sheet.totalArea || sheet.totalArea <= 0) {
+      alert("This sheet has no usable area, so usage can't be set.");
+      return;
+    }
     const newUsedArea = sheet.totalArea * (pct / 100);
     try {
       await sheetApi.update(id, { usedArea: newUsedArea, isManualUsage: true });
