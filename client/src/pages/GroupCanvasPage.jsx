@@ -4,7 +4,7 @@
 // Layout: Top-to-Bottom (Main Sheet on top, Sons below)
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -260,7 +260,7 @@ export default function GroupCanvasPage() {
   // ── Add Sheet to Group ──
   const handleAddSheet = async (sheetId) => {
     try {
-      const currentSheetIds = group.sheets.map((s) => s.id);
+      const currentSheetIds = (group?.sheets ?? []).map((s) => s.id);
       await groupApi.update(groupId, {
         sheetIds: [...currentSheetIds, sheetId],
       });
@@ -276,6 +276,28 @@ export default function GroupCanvasPage() {
   const handleZoom = useCallback((delta) => {
     setScale((prev) => Math.max(0.2, Math.min(3, prev + delta)));
   }, []);
+
+  // ── Compute Layouts (memoized: only recompute when the trees change, not on
+  // every pan/zoom re-render) ──
+  const { layouts, canvasWidth, canvasHeight } = useMemo(() => {
+    const layouts = [];
+    let currentX = PADDING;
+    trees.forEach((tree, idx) => {
+      const layout = layoutTree(tree, currentX, PADDING);
+      layouts.push({ ...layout, treeIndex: idx, rootId: tree.id });
+      currentX += layout.width + TREE_GAP;
+    });
+
+    let canvasWidth = PADDING * 2;
+    let canvasHeight = PADDING * 2;
+    layouts.forEach(({ positions }) => {
+      positions.forEach((pos) => {
+        canvasWidth = Math.max(canvasWidth, pos.x + CARD_WIDTH + PADDING);
+        canvasHeight = Math.max(canvasHeight, pos.y + CARD_HEIGHT + PADDING);
+      });
+    });
+    return { layouts, canvasWidth, canvasHeight };
+  }, [trees]);
 
   const handleFitToScreen = useCallback(() => {
     if (!containerRef.current || layouts.length === 0) return;
@@ -299,7 +321,7 @@ export default function GroupCanvasPage() {
       x: (containerRect.width - maxX * newScale) / 2,
       y: 40,
     });
-  }, []);
+  }, [layouts]);
 
   // ── Mouse Wheel Zoom ──
   const handleWheel = useCallback((e) => {
@@ -326,26 +348,6 @@ export default function GroupCanvasPage() {
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
   }, []);
-
-  // ── Compute Layouts ──
-  const layouts = [];
-  let currentX = PADDING;
-
-  trees.forEach((tree, idx) => {
-    const layout = layoutTree(tree, currentX, PADDING);
-    layouts.push({ ...layout, treeIndex: idx, rootId: tree.id });
-    currentX += layout.width + TREE_GAP;
-  });
-
-  // Compute total canvas size
-  let canvasWidth = PADDING * 2;
-  let canvasHeight = PADDING * 2;
-  layouts.forEach(({ positions }) => {
-    positions.forEach((pos) => {
-      canvasWidth = Math.max(canvasWidth, pos.x + CARD_WIDTH + PADDING);
-      canvasHeight = Math.max(canvasHeight, pos.y + CARD_HEIGHT + PADDING);
-    });
-  });
 
   // ── Loading State ──
   if (loading) {
