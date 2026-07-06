@@ -12,6 +12,20 @@ const api = axios.create({
   },
 });
 
+// When the session expires the server replies 401 — send the user to login
+// once (guard against a redirect loop while already on the login page).
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const path = window.location.pathname;
+    if (status === 401 && path !== "/login" && path !== "/register") {
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ---- Sheet API ----
 
 export const sheetApi = {
