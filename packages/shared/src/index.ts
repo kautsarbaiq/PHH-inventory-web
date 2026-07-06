@@ -16,6 +16,7 @@ export {
   makeSonSchema,
   createGroupSchema,
   updateGroupSchema,
+  genealogyBatchSchema,
 } from "./validators/index.js";
 // Export inferred types with unique names
 export type {

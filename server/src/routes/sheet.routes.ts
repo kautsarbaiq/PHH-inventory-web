@@ -13,6 +13,7 @@ import {
   updateSheetSchema,
   createSonSheetSchema,
   makeSonSchema,
+  genealogyBatchSchema,
 } from "@phh/shared";
 import { respondError } from "../utils/http-error.js";
 
@@ -52,11 +53,15 @@ router.get("/", async (req, res) => {
  */
 router.post("/genealogy-batch", async (req: Request, res) => {
   try {
-    const { sheetIds } = req.body;
-    if (!Array.isArray(sheetIds) || sheetIds.length === 0) {
-      return res.status(400).json({ success: false, error: "sheetIds must be a non-empty array" });
+    const parsed = genealogyBatchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: parsed.error.flatten().fieldErrors,
+      });
     }
-    const trees = await sheetService.getGenealogyBatch(sheetIds);
+    const trees = await sheetService.getGenealogyBatch(parsed.data.sheetIds);
     res.json({ success: true, data: trees });
   } catch (error) {
     respondError(res, error);

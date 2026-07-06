@@ -118,6 +118,14 @@ export const updatePositionSchema = z.object({
   rotation: z.number().min(0).max(360).optional(),
 });
 
+// ---- Genealogy batch (bounded fan-out) ----
+export const genealogyBatchSchema = z.object({
+  sheetIds: z
+    .array(z.string().uuid("Invalid sheet id"))
+    .min(1, "sheetIds must be a non-empty array")
+    .max(200, "Too many sheet ids (max 200)"),
+});
+
 /** Shared helper so the create/update refine logic cannot drift. */
 function dimensionsMatchType(type: string, dimensions: unknown): boolean {
   if (type === CUTTING_TYPES.RECTANGLE) {
