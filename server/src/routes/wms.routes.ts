@@ -1,16 +1,30 @@
 // ============================================================
-// PHH Inventory — WMS Routes (consumed by the PHH WMS mobile app)
+// PHH Inventory — WMS Routes (Receiving / Picking / Placement)
 //
-// NOTE: these are intentionally public for the initial mobile integration so
-// the app can connect without a login flow yet.
-// TODO(auth): gate with requireAuth once the mobile app has a sign-in screen.
+// Kept for a future web-based WMS. All routes require a valid session
+// (requireAuth), mutation bodies are validated with shared Zod schemas, and
+// responses use the same { success, data | message | error } envelope as the
+// rest of the API. State is still in-memory (see wms.service.ts) — persistence
+// to Postgres via migration 0002 is the next step.
 // ============================================================
 
 import { Router, type Request } from "express";
-import { wmsService } from "../services/wms.service.js";
+import { wmsScanSchema, wmsPlaceSchema } from "@phh/shared";
+import { requireAuth } from "../middleware/auth.middleware.js";
+import { wmsService, type ScanResult } from "../services/wms.service.js";
 import { respondError } from "../utils/http-error.js";
+import type { Response } from "express";
 
 const router = Router();
+
+// All WMS routes require a signed-in user (receiving/picking are staff actions).
+router.use(requireAuth);
+
+/** Map a service ScanResult onto the shared response envelope. */
+function sendScanResult(res: Response, result: ScanResult) {
+  if (result.ok) return res.json({ success: true, message: result.message });
+  return res.status(400).json({ success: false, error: result.message });
+}
 
 // ---- Receiving ----
 router.get("/purchase-orders", (_req, res) => {
@@ -33,8 +47,11 @@ router.get("/purchase-orders/:id", (req: Request<{ id: string }>, res) => {
 
 router.post("/purchase-orders/:id/receive", (req: Request<{ id: string }>, res) => {
   try {
-    const result = wmsService.receiveByBarcode(req.params.id, req.body?.barcode ?? "");
-    res.status(result.ok ? 200 : 400).json({ success: result.ok, ...result });
+    const parsed = wmsScanSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+    }
+    sendScanResult(res, wmsService.receiveByBarcode(req.params.id, parsed.data.barcode));
   } catch (e) {
     respondError(res, e);
   }
@@ -44,8 +61,7 @@ router.post(
   "/purchase-orders/:id/items/:itemId/receive-all",
   (req: Request<{ id: string; itemId: string }>, res) => {
     try {
-      const result = wmsService.receiveLineFully(req.params.id, req.params.itemId);
-      res.status(result.ok ? 200 : 400).json({ success: result.ok, ...result });
+      sendScanResult(res, wmsService.receiveLineFully(req.params.id, req.params.itemId));
     } catch (e) {
       respondError(res, e);
     }
@@ -73,8 +89,11 @@ router.get("/pick-lists/:id", (req: Request<{ id: string }>, res) => {
 
 router.post("/pick-lists/:id/pick", (req: Request<{ id: string }>, res) => {
   try {
-    const result = wmsService.pickByBarcode(req.params.id, req.body?.barcode ?? "");
-    res.status(result.ok ? 200 : 400).json({ success: result.ok, ...result });
+    const parsed = wmsScanSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+    }
+    sendScanResult(res, wmsService.pickByBarcode(req.params.id, parsed.data.barcode));
   } catch (e) {
     respondError(res, e);
   }
@@ -84,8 +103,7 @@ router.post(
   "/pick-lists/:id/lines/:lineId/pick-all",
   (req: Request<{ id: string; lineId: string }>, res) => {
     try {
-      const result = wmsService.pickLineFully(req.params.id, req.params.lineId);
-      res.status(result.ok ? 200 : 400).json({ success: result.ok, ...result });
+      sendScanResult(res, wmsService.pickLineFully(req.params.id, req.params.lineId));
     } catch (e) {
       respondError(res, e);
     }
@@ -103,8 +121,11 @@ router.get("/placements", (_req, res) => {
 
 router.post("/placements/:id/place", (req: Request<{ id: string }>, res) => {
   try {
-    const result = wmsService.placeByBarcode(req.params.id, req.body?.locationCode ?? "");
-    res.status(result.ok ? 200 : 400).json({ success: result.ok, ...result });
+    const parsed = wmsPlaceSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+    }
+    sendScanResult(res, wmsService.placeByBarcode(req.params.id, parsed.data.locationCode));
   } catch (e) {
     respondError(res, e);
   }

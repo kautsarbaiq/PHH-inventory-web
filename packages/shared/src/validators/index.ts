@@ -126,6 +126,15 @@ export const genealogyBatchSchema = z.object({
     .max(200, "Too many sheet ids (max 200)"),
 });
 
+// ---- WMS scan payloads ----
+export const wmsScanSchema = z.object({
+  barcode: z.string().trim().min(1, "Barcode is required").max(64, "Barcode too long"),
+});
+
+export const wmsPlaceSchema = z.object({
+  locationCode: z.string().trim().min(1, "Location code is required").max(64, "Location code too long"),
+});
+
 /** Shared helper so the create/update refine logic cannot drift. */
 function dimensionsMatchType(type: string, dimensions: unknown): boolean {
   if (type === CUTTING_TYPES.RECTANGLE) {
