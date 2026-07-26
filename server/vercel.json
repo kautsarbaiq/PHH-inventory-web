@@ -1,11 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "pnpm run vercel-build",
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "dist/**"
-    }
-  },
+  "buildCommand": "echo 'no build needed — api/index.js is pre-bundled and committed'",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }

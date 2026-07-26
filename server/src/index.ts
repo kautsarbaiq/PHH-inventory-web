@@ -1,11 +1,12 @@
 // ============================================================
 // PHH Inventory — Local Server Entry Point
 // Boots the Express app (src/app.ts) as a long-running process.
-// On Vercel the same app is exported from api/index.ts instead.
+// On Vercel the same app is served from src/serverless.ts instead.
 // ============================================================
 
-import app from "./app.js";
+import { createApp } from "./app.js";
 
+const app = createApp();
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {

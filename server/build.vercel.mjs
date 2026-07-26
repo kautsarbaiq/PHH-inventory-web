@@ -1,10 +1,15 @@
 // ============================================================
-// PHH Inventory — Serverless bundle build (esbuild)
-// Bundles src/app.ts + the @phh/shared workspace package (which
-// ships raw TypeScript) into a single plain-JS ESM file that the
-// Vercel function (api/index.ts) imports. Real npm dependencies
+// PHH Inventory — Serverless function build (esbuild)
+// Bundles src/serverless.ts (the handler) + src/app.ts + the
+// @phh/shared workspace package (which ships raw TypeScript) into a
+// single self-contained api/index.js. Real npm dependencies
 // (express, better-auth, pg, drizzle, zod, …) are left external and
 // resolved from node_modules at runtime.
+//
+// The output is COMMITTED to git and deployed as-is, so Vercel never
+// has to build the monorepo (which is what was failing). Re-run this
+// (`pnpm run vercel-build`) and commit api/index.js after changing
+// any server source.
 //
 // A small plugin rewrites TypeScript's ".js" import specifiers to
 // the ".ts" source on disk so esbuild can follow them.
@@ -16,7 +21,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const entry = resolve(__dirname, "src/app.ts");
+const entry = resolve(__dirname, "src/serverless.ts");
 
 /** @type {import('esbuild').Plugin} */
 const firstPartyResolver = {
@@ -57,7 +62,7 @@ await build({
   platform: "node",
   format: "esm",
   target: "node20",
-  outfile: resolve(__dirname, "dist/app.js"),
+  outfile: resolve(__dirname, "api/index.js"),
   sourcemap: false,
   logLevel: "info",
   plugins: [firstPartyResolver],
@@ -70,4 +75,4 @@ await build({
   },
 });
 
-console.log("✅ Serverless bundle written to dist/app.js");
+console.log("✅ Serverless function written to api/index.js (commit this file)");
