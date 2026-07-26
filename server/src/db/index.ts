@@ -22,8 +22,17 @@ const sslConfig = caCert
     ? { rejectUnauthorized: false }
     : undefined;
 
+// In a serverless environment (Vercel) each warm instance keeps its own pool
+// while many instances may run concurrently, so cap connections tightly and
+// let idle sockets close quickly — the Supabase pgBouncer pooler multiplexes
+// them upstream. Locally we allow a larger pool for a single long-lived process.
+const isServerless = !!process.env.VERCEL;
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: isServerless ? 1 : 10,
+  idleTimeoutMillis: isServerless ? 10_000 : 30_000,
+  connectionTimeoutMillis: 10_000,
   ...(sslConfig ? { ssl: sslConfig } : {}),
 });
 
