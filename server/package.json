@@ -2,9 +2,13 @@
   "name": "@phh/server",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "vercel-build": "node build.vercel.mjs",
     "start": "tsx src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -29,6 +33,7 @@
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
     "drizzle-kit": "^0.30.0",
+    "esbuild": "^0.24.0",
     "typescript": "^5.7.0"
   }
 }
