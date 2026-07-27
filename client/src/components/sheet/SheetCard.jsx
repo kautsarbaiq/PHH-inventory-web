@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Package, AlertTriangle, Archive, ArrowRight, ChevronDown, ChevronRight, GitBranch } from "lucide-react";
+import { Package, AlertTriangle, Archive, ArrowRight, ChevronDown, ChevronRight, GitBranch, Scissors } from "lucide-react";
 import { formatPercent, calculateWeight, formatWeight } from "../../lib/calculations";
-import { sheetApi } from "../../lib/api";
+import { sheetApi, cuttingApi } from "../../lib/api";
+
+// Compact dimension formatter for a cutting order.
+const fmtCutDims = (d) => {
+  if (!d) return "";
+  if (d.radius != null) return `⌀${d.radius}`;
+  if (d.base != null) return `${d.base}×${d.height}`;
+  if (d.length != null) return `${d.length}×${d.width}`;
+  return "";
+};
 
 const STATUS_CONFIG = {
   active: { label: "Active", color: "text-success", bg: "bg-success/10", icon: Package },
@@ -27,6 +36,9 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
   const [expanded, setExpanded] = useState(shouldExpand);
   const [children, setChildren] = useState(sheet.children || []);
   const [loading, setLoading] = useState(false);
+  const [cuttings, setCuttings] = useState([]);
+  const [cuttingsLoaded, setCuttingsLoaded] = useState(false);
+  const [cuttingsLoading, setCuttingsLoading] = useState(false);
 
   const usedPct = sheet.totalArea > 0 ? (sheet.usedArea / sheet.totalArea) * 100 : 0;
   const statusCfg = STATUS_CONFIG[sheet.status] || STATUS_CONFIG.active;
@@ -60,6 +72,19 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
           console.error("Failed to fetch children", err);
         } finally {
           setLoading(false);
+        }
+      }
+      // Lazily load this sheet's cutting orders for the dropdown.
+      if (!cuttingsLoaded) {
+        setCuttingsLoading(true);
+        try {
+          const res = await cuttingApi.list(sheet.id);
+          setCuttings(res.data.data || res.data || []);
+        } catch (err) {
+          console.error("Failed to fetch cuttings", err);
+        } finally {
+          setCuttingsLoaded(true);
+          setCuttingsLoading(false);
         }
       }
     } else {
@@ -176,9 +201,39 @@ export default function SheetCard({ sheet, depth = 0, matchingSheetIds = [], sea
         </button>
       </div>
 
-      {/* Nested Children Accordion */}
+      {/* Expanded dropdown: Orders/Cuttings + Son sheets */}
       {expanded && (
         <div className="flex flex-col mt-2 animate-fade-in">
+          {/* Orders / Cuttings on this sheet */}
+          <div className="mb-2">
+            <p className="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-1.5 flex items-center gap-1">
+              <Scissors className="w-3 h-3" /> Orders / Cuttings
+            </p>
+            {cuttingsLoading ? (
+              <div className="text-[11px] text-text-muted animate-pulse">Loading orders...</div>
+            ) : cuttings.length === 0 ? (
+              <div className="text-[11px] text-text-muted">No orders yet</div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {cuttings.map((c) => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-400/10 border border-amber-400/30 text-[10px] text-text-secondary"
+                    title={`Order #${c.jobNumber} • ${c.cuttingType}`}
+                  >
+                    <span className="font-bold text-amber-600 dark:text-amber-300">#{c.jobNumber}</span>
+                    <span className="capitalize">{c.cuttingType}</span>
+                    <span className="font-mono text-text-muted">{fmtCutDims(c.dimensions)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Son sheets */}
+          <p className="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-1 flex items-center gap-1">
+            <GitBranch className="w-3 h-3" /> Son Sheets
+          </p>
           {loading ? (
             <div className="text-xs text-text-muted py-2 text-center animate-pulse">Loading Son Sheets...</div>
           ) : children.length === 0 ? (
