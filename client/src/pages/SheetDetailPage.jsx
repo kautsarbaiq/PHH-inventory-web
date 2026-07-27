@@ -268,6 +268,15 @@ export default function SheetDetailPage() {
           </p>
         </div>
         
+        {/* View Flow (genealogy + orders) — available to everyone */}
+        <button
+          onClick={() => navigate(`/sheets/${id}/flow`)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-success bg-success/10 hover:bg-success/20 rounded-lg transition-colors cursor-pointer shrink-0"
+        >
+          <GitBranch className="w-3.5 h-3.5" />
+          View Flow
+        </button>
+
         {/* Manager-only sheet actions (server enforces requireRole('manager')) */}
         {isManager && (
           <>

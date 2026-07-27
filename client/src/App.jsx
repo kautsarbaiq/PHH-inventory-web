@@ -15,6 +15,7 @@ import SheetDetailPage from "./pages/SheetDetailPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupCanvasPage from "./pages/GroupCanvasPage";
 import WarehousePage from "./pages/WarehousePage";
+import SheetFlowPage from "./pages/SheetFlowPage";
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="/warehouse" element={<WarehousePage />} />
             <Route path="/archived" element={<ArchivedPage />} />
             <Route path="/sheets/:id" element={<SheetDetailPage />} />
+            <Route path="/sheets/:id/flow" element={<SheetFlowPage />} />
           </Route>
 
           {/* Default redirect */}
