@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, ZoomIn, ZoomOut, Maximize2, Loader2, GitBranch,
-  Package, Scissors, ExternalLink,
+  Package, Scissors, ExternalLink, Search, X,
 } from "lucide-react";
 import { sheetApi, cuttingApi } from "../lib/api";
 import { formatArea } from "../lib/calculations";
@@ -179,7 +179,17 @@ export default function SheetFlowPage() {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [query, setQuery] = useState("");
   const containerRef = useRef(null);
+
+  // A node matches the search by sheet number (sheets) or job number (orders).
+  const nodeMatches = (p, q) => {
+    if (!q) return true;
+    const s = q.trim().toLowerCase().replace(/^#/, "");
+    if (!s) return true;
+    if (p.nodeType === "order") return String(p.jobNumber).toLowerCase().includes(s);
+    return String(p.sheetNumber).toLowerCase().includes(s);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -242,6 +252,11 @@ export default function SheetFlowPage() {
     return { sheets, orders };
   }, [positions]);
 
+  const matchCount = useMemo(() => {
+    if (!query.trim()) return null;
+    return positions.filter((p) => nodeMatches(p, query)).length;
+  }, [positions, query]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center bg-bg-base">
@@ -264,7 +279,30 @@ export default function SheetFlowPage() {
           <h1 className="text-sm font-bold text-text-primary flex items-center gap-2">
             <GitBranch className="w-4 h-4 text-primary shrink-0" /> Sheet Flow
           </h1>
-          <p className="text-[10px] text-text-muted mt-0.5">{counts.sheets} sheets • {counts.orders} orders</p>
+          <p className="text-[10px] text-text-muted mt-0.5">
+            {counts.sheets} sheets • {counts.orders} orders
+            {matchCount !== null && <span className="text-primary"> • {matchCount} match{matchCount === 1 ? "" : "es"}</span>}
+          </p>
+        </div>
+        {/* Search by sheet / order number */}
+        <div className="relative shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search sheet / order #"
+            className="w-52 h-8 pl-8 pr-7 text-xs bg-bg-elevated border border-border rounded-lg focus:outline-none focus:border-primary text-text-primary placeholder:text-text-muted"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary cursor-pointer"
+              title="Clear"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
         {/* Legend */}
         <div className="hidden sm:flex items-center gap-3 mr-2">
@@ -296,13 +334,20 @@ export default function SheetFlowPage() {
                 <Connector key={i} from={{ x: c.fromX, y: c.fromY }} to={{ x: c.toX, y: c.toY }} />
               ))}
             </svg>
-            {positions.map((p) => (
-              <div key={p.id} className="flow-node absolute" style={{ left: p.x, top: p.y, width: CARD_W }}>
-                {p.nodeType === "order"
-                  ? <OrderCard node={p} />
-                  : <SheetCard node={p} isRoot={!p.parentId} onOpen={(sid) => navigate(`/sheets/${sid}`)} />}
-              </div>
-            ))}
+            {positions.map((p) => {
+              const dim = query.trim() && !nodeMatches(p, query);
+              return (
+                <div
+                  key={p.id}
+                  className="flow-node absolute"
+                  style={{ left: p.x, top: p.y, width: CARD_W, opacity: dim ? 0.2 : 1, transition: "opacity 0.2s" }}
+                >
+                  {p.nodeType === "order"
+                    ? <OrderCard node={p} />
+                    : <SheetCard node={p} isRoot={!p.parentId} onOpen={(sid) => navigate(`/sheets/${sid}`)} />}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
